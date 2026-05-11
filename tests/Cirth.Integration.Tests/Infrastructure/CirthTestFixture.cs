@@ -9,15 +9,13 @@ namespace Cirth.Integration.Tests.Infrastructure;
 
 public sealed class CirthTestFixture : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder()
-        .WithImage("postgres:16-alpine")
+    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:16-alpine")
         .WithDatabase("cirth_test")
         .WithUsername("cirth")
         .WithPassword("test_pass")
         .Build();
 
-    private readonly RedisContainer _redis = new RedisBuilder()
-        .WithImage("redis:7-alpine")
+    private readonly RedisContainer _redis = new RedisBuilder("redis:7-alpine")
         .Build();
 
     public IServiceProvider Services { get; private set; } = null!;
@@ -45,7 +43,7 @@ public sealed class CirthTestFixture : IAsyncLifetime
 
         services.AddDbContext<AppDbContext>(opt =>
             opt.UseNpgsql(_postgres.GetConnectionString())
-               .UseSnakeCaseNamingConventions());
+               .UseSnakeCaseNamingConvention());
 
         Services = services.BuildServiceProvider();
 
