@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Cirth.Domain</RootNamespace>
+    <AssemblyName>Cirth.Domain</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Cirth.Shared\Cirth.Shared.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Cirth.Shared</RootNamespace>
+    <AssemblyName>Cirth.Shared</AssemblyName>
+  </PropertyGroup>
+</Project>

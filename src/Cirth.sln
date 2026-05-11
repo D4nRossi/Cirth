@@ -1,0 +1,28 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cirth.Domain", "Cirth.Domain\Cirth.Domain.csproj", "{D0001000-0000-0000-0000-000000000001}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cirth.Application", "Cirth.Application\Cirth.Application.csproj", "{D0001000-0000-0000-0000-000000000002}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cirth.Infrastructure", "Cirth.Infrastructure\Cirth.Infrastructure.csproj", "{D0001000-0000-0000-0000-000000000003}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cirth.Web", "Cirth.Web\Cirth.Web.csproj", "{D0001000-0000-0000-0000-000000000004}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cirth.Mcp", "Cirth.Mcp\Cirth.Mcp.csproj", "{D0001000-0000-0000-0000-000000000005}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cirth.Worker", "Cirth.Worker\Cirth.Worker.csproj", "{D0001000-0000-0000-0000-000000000006}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cirth.Shared", "Cirth.Shared\Cirth.Shared.csproj", "{D0001000-0000-0000-0000-000000000007}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cirth.Domain.Tests", "..\tests\Cirth.Domain.Tests\Cirth.Domain.Tests.csproj", "{D0002000-0000-0000-0000-000000000001}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cirth.Application.Tests", "..\tests\Cirth.Application.Tests\Cirth.Application.Tests.csproj", "{D0002000-0000-0000-0000-000000000002}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cirth.Integration.Tests", "..\tests\Cirth.Integration.Tests\Cirth.Integration.Tests.csproj", "{D0002000-0000-0000-0000-000000000003}"
+EndProject
+Global
+    GlobalSection(SolutionConfigurationPlatforms) = preSolution
+        Debug|Any CPU = Debug|Any CPU
+        Release|Any CPU = Release|Any CPU
+    EndGlobalSection
+EndGlobal

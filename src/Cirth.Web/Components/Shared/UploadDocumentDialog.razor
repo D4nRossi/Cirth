@@ -1,0 +1,126 @@
+@inject IMediator Mediator
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Novo documento</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_isValid">
+            <MudTextField @bind-Value="_title" Label="Título" Required="true"
+                          RequiredError="Título é obrigatório" Class="mb-3" />
+
+            <MudToggleGroup T="string" @bind-Value="_mode" SelectionMode="SelectionMode.SingleSelection">
+                <MudToggleItem Value="@("file")">Arquivo</MudToggleItem>
+                <MudToggleItem Value="@("url")">URL</MudToggleItem>
+            </MudToggleGroup>
+
+            @if (_mode == "file")
+            {
+                <MudFileUpload T="IBrowserFile" @bind-Files="_file" Accept=".pdf,.docx,.md,.txt,.html"
+                               Class="mt-3">
+                    <ActivatorContent>
+                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.AttachFile">
+                            Selecionar arquivo
+                        </MudButton>
+                    </ActivatorContent>
+                    <SelectedTemplate>
+                        @if (context is not null)
+                        {
+                            <MudText Class="mt-1">@context.Name (@FormatSize(context.Size))</MudText>
+                        }
+                    </SelectedTemplate>
+                </MudFileUpload>
+            }
+            else
+            {
+                <MudTextField @bind-Value="_url" Label="URL" Placeholder="https://..." Class="mt-3"
+                              Validation="@((Func<string, string?>)ValidateUrl)" />
+            }
+
+            <MudTextField @bind-Value="_author" Label="Autor (opcional)" Class="mt-3" />
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@Cancel">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@Upload"
+                   Disabled="@(_uploading || !_isValid)">
+            @if (_uploading) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+            Enviar
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] public MudDialogInstance? MudDialog { get; set; }
+    [Parameter] public bool Open { get; set; }
+    [Parameter] public EventCallback<bool> OpenChanged { get; set; }
+    [Parameter] public EventCallback OnUploaded { get; set; }
+
+    private MudForm _form = null!;
+    private bool _isValid;
+    private bool _uploading;
+    private string _title = string.Empty;
+    private string _mode = "file";
+    private string _url = string.Empty;
+    private string _author = string.Empty;
+    private IBrowserFile? _file;
+
+    private string? ValidateUrl(string url) =>
+        Uri.IsWellFormedUriString(url, UriKind.Absolute) ? null : "URL inválida";
+
+    private void Cancel()
+    {
+        OpenChanged.InvokeAsync(false);
+        MudDialog?.Cancel();
+    }
+
+    private async Task Upload()
+    {
+        await _form.Validate();
+        if (!_isValid) return;
+
+        _uploading = true;
+        try
+        {
+            Result<UploadDocumentResult> result;
+
+            if (_mode == "url")
+            {
+                result = await Mediator.Send(new UploadDocumentCommand(
+                    _title, "url.txt", Stream.Null, "text/uri-list", 0, _author, true, _url));
+            }
+            else
+            {
+                if (_file is null) { Snackbar.Add("Selecione um arquivo", Severity.Warning); return; }
+                const long MaxSize = 50 * 1024 * 1024;
+                using var stream = _file.OpenReadStream(MaxSize);
+                result = await Mediator.Send(new UploadDocumentCommand(
+                    _title, _file.Name, stream, _file.ContentType, _file.Size, _author, false, null));
+            }
+
+            if (result.IsSuccess)
+            {
+                Snackbar.Add("Documento enviado e em processamento!", Severity.Success);
+                await OnUploaded.InvokeAsync();
+                await OpenChanged.InvokeAsync(false);
+                MudDialog?.Close();
+            }
+            else
+            {
+                Snackbar.Add(result.Error!.Message, Severity.Error);
+            }
+        }
+        finally
+        {
+            _uploading = false;
+        }
+    }
+
+    private static string FormatSize(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
+        return $"{bytes / (1024.0 * 1024):F1} MB";
+    }
+}

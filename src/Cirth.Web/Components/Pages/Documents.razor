@@ -1,0 +1,88 @@
+@page "/documents"
+@attribute [Authorize]
+@inject IMediator Mediator
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+
+<PageTitle>Documentos — Cirth</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4" Style="font-family:'Cinzel',serif">Documentos</MudText>
+
+<MudGrid>
+    <MudItem xs="12" sm="8">
+        <MudTextField T="string" @bind-Value="_search" Placeholder="Filtrar documentos..."
+                      Variant="Variant.Outlined" Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true"
+                      DebounceInterval="300" OnDebounceIntervalElapsed="LoadDocuments" />
+    </MudItem>
+    <MudItem xs="12" sm="4" Class="d-flex justify-end align-center">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Upload"
+                   OnClick="@(() => _uploadOpen = true)">
+            Novo documento
+        </MudButton>
+    </MudItem>
+</MudGrid>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Class="my-4" />
+}
+else if (_documents.Count == 0)
+{
+    <MudAlert Severity="Severity.Info" Class="mt-4">
+        Nenhum documento encontrado. Faça upload do seu primeiro documento.
+    </MudAlert>
+}
+else
+{
+    <MudTable T="DocumentSummaryDto" Items="_documents" Hover="true" Class="mt-4" OnRowClick="@((TableRowClickEventArgs<DocumentSummaryDto> args) => { if (args.Item is not null) Nav.NavigateTo($"/documents/{args.Item.Id}"); })">
+        <HeaderContent>
+            <MudTh>Título</MudTh>
+            <MudTh>Tipo</MudTh>
+            <MudTh>Status</MudTh>
+            <MudTh>Versões</MudTh>
+            <MudTh>Tags</MudTh>
+            <MudTh>Atualizado</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>
+                <MudLink Href="@($"/documents/{context.Id}")" Class="cirth-link">@context.Title</MudLink>
+            </MudTd>
+            <MudTd><MudChip T="string" Size="Size.Small">@context.SourceType</MudChip></MudTd>
+            <MudTd><DocumentStatusChip Status="@context.Status" /></MudTd>
+            <MudTd>@context.VersionCount</MudTd>
+            <MudTd>
+                @foreach (var tag in context.Tags.Take(3))
+                {
+                    <MudChip T="string" Size="Size.Small" Class="mr-1">@tag.Name</MudChip>
+                }
+            </MudTd>
+            <MudTd>@context.UpdatedAt.LocalDateTime.ToString("dd/MM/yy HH:mm")</MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager />
+        </PagerContent>
+    </MudTable>
+}
+
+<UploadDocumentDialog @bind-Open="_uploadOpen" OnUploaded="LoadDocuments" />
+
+@code {
+    private bool _loading = true;
+    private bool _uploadOpen = false;
+    private string _search = string.Empty;
+    private List<DocumentSummaryDto> _documents = [];
+
+    protected override async Task OnInitializedAsync() => await LoadDocuments();
+
+    private async Task LoadDocuments()
+    {
+        _loading = true;
+        var result = await Mediator.Send(new ListDocumentsQuery());
+        if (result.IsSuccess)
+            _documents = result.Value!.Items.ToList();
+        else
+            Snackbar.Add(result.Error!.Message, Severity.Error);
+        _loading = false;
+    }
+}

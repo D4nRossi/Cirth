@@ -1,0 +1,65 @@
+@page "/saved"
+@attribute [Authorize]
+@inject IMediator Mediator
+@inject ISnackbar Snackbar
+
+<PageTitle>Respostas Salvas — Cirth</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4" Style="font-family:'Cinzel',serif">Respostas Salvas</MudText>
+
+<MudTextField @bind-Value="_search" Label="Buscar nas respostas salvas" Variant="Variant.Outlined"
+              Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search"
+              OnAdornmentClick="Search" FullWidth="true" Class="mb-4" />
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else if (_answers.Count == 0)
+{
+    <MudAlert Severity="Severity.Info">Nenhuma resposta salva ainda.</MudAlert>
+}
+else
+{
+    @foreach (var a in _answers)
+    {
+        <MudExpansionPanel Class="mb-2">
+            <TitleContent>
+                <div class="d-flex align-center justify-space-between w-100">
+                    <MudText Typo="Typo.subtitle2">@a.Question</MudText>
+                    <div class="d-flex align-center gap-2">
+                        <MudIcon Icon="@Icons.Material.Filled.ThumbUp" Size="Size.Small" Class="cirth-muted" />
+                        <MudText Typo="Typo.caption">@a.UtilityScore</MudText>
+                        <MudIcon Icon="@Icons.Material.Filled.BookmarkBorder" Size="Size.Small" Class="cirth-muted" />
+                        <MudText Typo="Typo.caption">@a.UsageCount</MudText>
+                    </div>
+                </div>
+            </TitleContent>
+            <ChildContent>
+                <MudMarkdown Value="@a.Answer" />
+                <MudText Typo="Typo.caption" Class="cirth-muted mt-2">
+                    Salvo em @a.CreatedAt.LocalDateTime.ToString("dd/MM/yyyy")
+                </MudText>
+            </ChildContent>
+        </MudExpansionPanel>
+    }
+}
+
+@code {
+    private List<SavedAnswerSummaryDto> _answers = [];
+    private bool _loading = true;
+    private string _search = string.Empty;
+
+    protected override async Task OnInitializedAsync() => await Search();
+
+    private async Task Search()
+    {
+        _loading = true;
+        var result = await Mediator.Send(new ListSavedAnswersQuery(string.IsNullOrWhiteSpace(_search) ? null : _search));
+        if (result.IsSuccess)
+            _answers = result.Value!.ToList();
+        else
+            Snackbar.Add(result.Error!.Message, Severity.Error);
+        _loading = false;
+    }
+}

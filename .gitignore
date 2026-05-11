@@ -1,0 +1,46 @@
+# Environment
+.env
+.env.local
+*.pem
+*.key
+
+# .NET
+bin/
+obj/
+out/
+publish/
+*.user
+*.suo
+*.nupkg
+*.snupkg
+*.dll
+*.pdb
+*.exe
+*.cache
+TestResults/
+coverage*
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docker volumes (just in case)
+docker-volumes/
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# nginx generated certs
+nginx/certs/
+
+# Backups
+backups/*.tar.gz
+backups/*.sql

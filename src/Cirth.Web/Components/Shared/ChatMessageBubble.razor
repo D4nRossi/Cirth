@@ -1,0 +1,30 @@
+@using Cirth.Application.Features.Chat.GetConversation
+
+<div class="@BubbleClass">
+    <div class="chat-bubble @(IsUser ? "user-bubble" : "assistant-bubble")">
+        @if (IsStreaming)
+        {
+            <span>@Message.Content</span>
+            <span class="streaming-cursor">▋</span>
+        }
+        else
+        {
+            <MudMarkdown Value="@Message.Content" />
+        }
+    </div>
+    @if (!IsStreaming && Message.CreatedAt != DateTimeOffset.MinValue)
+    {
+        <MudText Typo="Typo.caption" Class="@TimestampClass">
+            @Message.CreatedAt.LocalDateTime.ToString("HH:mm")
+        </MudText>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public MessageDto Message { get; set; } = null!;
+    [Parameter] public bool IsStreaming { get; set; }
+
+    private bool IsUser => Message.Role == "User";
+    private string BubbleClass => IsUser ? "d-flex flex-column align-end" : "d-flex flex-column align-start";
+    private string TimestampClass => IsUser ? "cirth-muted text-right" : "cirth-muted";
+}

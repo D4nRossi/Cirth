@@ -1,0 +1,14 @@
+@using Cirth.Web.Components.Layout
+
+<Router AppAssembly="typeof(Program).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="routeData" DefaultLayout="typeof(MainLayout)" />
+        <FocusOnNavigate RouteData="routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <PageTitle>Cirth — não encontrado</PageTitle>
+        <LayoutView Layout="typeof(MainLayout)">
+            <p>Esse caminho não está nos arquivos.</p>
+        </LayoutView>
+    </NotFound>
+</Router>

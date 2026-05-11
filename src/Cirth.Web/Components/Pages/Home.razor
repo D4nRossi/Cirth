@@ -1,0 +1,40 @@
+@page "/"
+
+<PageTitle>Cirth — Arquivos</PageTitle>
+
+<MudText Typo="Typo.h1" Class="mb-6">Os arquivos repousam.</MudText>
+
+<MudText Typo="Typo.body1" Class="mb-8" Style="max-width: 720px; color: var(--cirth-text-secondary);">
+    Bem-vindo ao Cirth. Aqui você inscreve seu conhecimento e o consulta como um sábio
+    consulta um manuscrito antigo. Comece enviando um documento ou abrindo o chat.
+</MudText>
+
+<MudGrid>
+    <MudItem xs="12" md="6">
+        <MudCard Outlined="true" Class="cirth-card">
+            <MudCardContent>
+                <MudText Typo="Typo.h4">Inscrever um documento</MudText>
+                <MudText Typo="Typo.body2" Class="mt-2" Style="color: var(--cirth-text-secondary);">
+                    PDF, Markdown, DOCX, HTML ou um link da web. O Cirth lê, divide, vetoriza e arquiva.
+                </MudText>
+            </MudCardContent>
+            <MudCardActions>
+                <MudButton Href="/documents/upload" Variant="Variant.Filled" Color="Color.Primary">Enviar</MudButton>
+            </MudCardActions>
+        </MudCard>
+    </MudItem>
+
+    <MudItem xs="12" md="6">
+        <MudCard Outlined="true" Class="cirth-card">
+            <MudCardContent>
+                <MudText Typo="Typo.h4">Consultar como Gandalf</MudText>
+                <MudText Typo="Typo.body2" Class="mt-2" Style="color: var(--cirth-text-secondary);">
+                    Pergunte em linguagem natural. As respostas vêm com citações para os manuscritos originais.
+                </MudText>
+            </MudCardContent>
+            <MudCardActions>
+                <MudButton Href="/chat" Variant="Variant.Outlined" Color="Color.Primary">Abrir chat</MudButton>
+            </MudCardActions>
+        </MudCard>
+    </MudItem>
+</MudGrid>

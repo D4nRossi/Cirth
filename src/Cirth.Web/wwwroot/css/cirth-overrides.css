@@ -1,0 +1,68 @@
+/* Cirth — refinamentos sobre MudBlazor */
+
+.mud-appbar {
+    backdrop-filter: blur(8px);
+}
+
+.mud-button-filled-primary {
+    border: 1px solid var(--cirth-gold-accent);
+    transition: all 200ms ease;
+}
+
+.mud-button-filled-primary:hover {
+    box-shadow: var(--cirth-shadow-gold-glow);
+}
+
+.mud-button-outlined {
+    border-color: var(--cirth-border-gold);
+}
+
+.mud-input-outlined .mud-input-outlined-border {
+    border-color: var(--cirth-border-default);
+}
+
+.mud-input-outlined:hover .mud-input-outlined-border {
+    border-color: var(--cirth-border-gold);
+}
+
+.mud-typography-h1,
+.mud-typography-h2,
+.mud-typography-h3 {
+    color: var(--cirth-gold-primary);
+    letter-spacing: 0.02em;
+}
+
+.mud-nav-link.active {
+    background: var(--cirth-bg-elevated) !important;
+    color: var(--cirth-gold-primary) !important;
+    border-left: 2px solid var(--cirth-gold-primary);
+}
+
+.cirth-main {
+    background: var(--cirth-bg-deep);
+    min-height: 100vh;
+}
+
+::selection {
+    background: var(--cirth-gold-muted);
+    color: var(--cirth-bg-deep);
+}
+
+/* Scrollbar discreto, tema escuro */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--cirth-bg-surface);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--cirth-border-strong);
+    border-radius: var(--cirth-radius-sm);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--cirth-gold-muted);
+}

@@ -1,0 +1,138 @@
+@page "/chat"
+@page "/chat/{ConversationId:guid}"
+@attribute [Authorize]
+@inject IMediator Mediator
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+
+<PageTitle>Chat RAG — Cirth</PageTitle>
+
+<MudGrid Style="height: calc(100vh - 120px);">
+    <MudItem xs="3" Style="overflow-y:auto; height:100%; border-right: 1px solid var(--cirth-border);">
+        <div class="d-flex align-center justify-space-between px-2 py-3">
+            <MudText Typo="Typo.subtitle1" Style="font-family:'Cinzel',serif">Conversas</MudText>
+            <MudIconButton Icon="@Icons.Material.Filled.Add" Size="Size.Small" OnClick="NewConversation" />
+        </div>
+        @foreach (var conv in _conversations)
+        {
+            <MudListItem T="string" Class="@(conv.Id == ConversationId ? "cirth-active-conv" : "")"
+                         OnClick="@(() => Nav.NavigateTo($"/chat/{conv.Id}"))">
+                <MudText Typo="Typo.body2">@(conv.Title ?? "Nova conversa")</MudText>
+                <MudText Typo="Typo.caption" Class="cirth-muted">@conv.UpdatedAt.LocalDateTime.ToString("dd/MM HH:mm")</MudText>
+            </MudListItem>
+        }
+    </MudItem>
+
+    <MudItem xs="9" Class="d-flex flex-column" Style="height:100%;">
+        @if (ConversationId == Guid.Empty || _conversation is null)
+        {
+            <div class="d-flex align-center justify-center" style="flex:1">
+                <MudText Typo="Typo.h6" Class="cirth-muted">Selecione ou crie uma conversa</MudText>
+            </div>
+        }
+        else
+        {
+            <div id="msg-container" class="flex-grow-1 overflow-y-auto pa-4" style="display:flex; flex-direction:column; gap:12px;">
+                @foreach (var msg in _messages)
+                {
+                    <ChatMessageBubble Message="msg" />
+                }
+                @if (!string.IsNullOrEmpty(_streamBuffer))
+                {
+                    <ChatMessageBubble Message="@(new MessageDto(Guid.Empty, "Assistant", _streamBuffer, [], DateTimeOffset.UtcNow))" IsStreaming="true" />
+                }
+            </div>
+
+            <div class="pa-3" style="border-top: 1px solid var(--cirth-border);">
+                <MudGrid>
+                    <MudItem xs="11">
+                        <MudTextField @bind-Value="_input" Placeholder="Faça uma pergunta sobre o seu acervo..."
+                                      Variant="Variant.Outlined" Lines="2" AutoGrow="true"
+                                      OnKeyDown="@OnKeyDown" Disabled="_sending" />
+                    </MudItem>
+                    <MudItem xs="1" Class="d-flex align-end">
+                        <MudIconButton Icon="@Icons.Material.Filled.Send" Color="Color.Primary"
+                                       OnClick="SendMessage" Disabled="_sending || string.IsNullOrWhiteSpace(_input)" />
+                    </MudItem>
+                </MudGrid>
+            </div>
+        }
+    </MudItem>
+</MudGrid>
+
+@code {
+    [Parameter] public Guid ConversationId { get; set; }
+
+    private List<ConversationSummaryDto> _conversations = [];
+    private ConversationDetailDto? _conversation;
+    private List<MessageDto> _messages = [];
+    private string _input = string.Empty;
+    private string _streamBuffer = string.Empty;
+    private bool _sending = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await Mediator.Send(new ListConversationsQuery());
+        if (result.IsSuccess) _conversations = result.Value!.ToList();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (ConversationId != Guid.Empty)
+        {
+            var result = await Mediator.Send(new GetConversationQuery(ConversationId));
+            if (result.IsSuccess)
+            {
+                _conversation = result.Value;
+                _messages = result.Value!.Messages.ToList();
+            }
+        }
+    }
+
+    private async Task NewConversation()
+    {
+        var result = await Mediator.Send(new CreateConversationCommand());
+        if (result.IsSuccess)
+        {
+            _conversations.Insert(0, new(result.Value!.Id, null, 0, DateTimeOffset.UtcNow));
+            Nav.NavigateTo($"/chat/{result.Value!.Id}");
+        }
+    }
+
+    private async Task SendMessage()
+    {
+        if (string.IsNullOrWhiteSpace(_input) || _sending) return;
+        var text = _input;
+        _input = string.Empty;
+        _sending = true;
+        _streamBuffer = string.Empty;
+
+        _messages.Add(new(Guid.NewGuid(), "User", text, [], DateTimeOffset.UtcNow));
+
+        var result = await Mediator.Send(new SendMessageCommand(ConversationId, text));
+
+        if (result.IsFailure)
+        {
+            Snackbar.Add(result.Error!.Message, Severity.Error);
+            _sending = false;
+            return;
+        }
+
+        await foreach (var token in result.Value!)
+        {
+            _streamBuffer += token;
+            StateHasChanged();
+        }
+
+        _messages.Add(new(Guid.NewGuid(), "Assistant", _streamBuffer, [], DateTimeOffset.UtcNow));
+        _streamBuffer = string.Empty;
+        _sending = false;
+        StateHasChanged();
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.ShiftKey)
+            await SendMessage();
+    }
+}
