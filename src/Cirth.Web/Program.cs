@@ -29,6 +29,16 @@ try
         .AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
         .AddMicrosoftIdentityWebApp(builder.Configuration.GetSection("EntraId"));
 
+    // Azure faz POST de volta para /signin-oidc (cross-site) — SameSite=Lax bloqueia os cookies
+    // de correlação/nonce. SameSite=None + Secure permite o fluxo OIDC funcionar.
+    builder.Services.Configure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
+    {
+        options.CorrelationCookie.SameSite = SameSiteMode.None;
+        options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.Always;
+        options.NonceCookie.SameSite = SameSiteMode.None;
+        options.NonceCookie.SecurePolicy = CookieSecurePolicy.Always;
+    });
+
     builder.Services.AddAuthorization(options =>
     {
         options.AddPolicy("Admin", p => p.RequireRole("Admin"));
@@ -82,6 +92,7 @@ try
     if (!app.Environment.IsDevelopment())
         app.UseHsts();
 
+    app.UseHttpsRedirection();
     app.UseStaticFiles();
     app.UseRouting();
     app.UseAuthentication();
