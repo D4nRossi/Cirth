@@ -4,6 +4,7 @@ using Cirth.Infrastructure.Auth;
 using Cirth.Web.Components;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Identity.Web;
 using MudBlazor.Services;
@@ -24,14 +25,21 @@ try
            .Enrich.FromLogContext()
            .Enrich.WithProperty("Application", "Cirth.Web"));
 
+    // Data Protection com chaves persistidas em disco — sem isso cada restart do processo
+    // (inclusive hot reload) gera novas chaves e invalida os cookies de correlação OIDC em voo.
+    builder.Services.AddDataProtection()
+        .PersistKeysToFileSystem(new DirectoryInfo(
+            Path.Combine(builder.Environment.ContentRootPath, ".data-protection-keys")));
+
     // Auth — Entra ID OIDC
     builder.Services
         .AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
         .AddMicrosoftIdentityWebApp(builder.Configuration.GetSection("EntraId"));
 
+    // PostConfigure (não Configure) para rodar DEPOIS dos IPostConfigureOptions do Microsoft.Identity.Web.
     // Azure faz POST de volta para /signin-oidc (cross-site) — SameSite=Lax bloqueia os cookies
-    // de correlação/nonce. SameSite=None + Secure permite o fluxo OIDC funcionar.
-    builder.Services.Configure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
+    // de correlação/nonce. SameSite=None + Secure permite o fluxo.
+    builder.Services.PostConfigure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
     {
         options.CorrelationCookie.SameSite = SameSiteMode.None;
         options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.Always;

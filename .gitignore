@@ -31,6 +31,9 @@ coverage*
 # Docker volumes (just in case)
 docker-volumes/
 
+# Data Protection keys (geradas em runtime, nunca commitar)
+.data-protection-keys/
+
 # Logs
 logs/
 *.log
