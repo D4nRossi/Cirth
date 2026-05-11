@@ -98,16 +98,31 @@ dotnet ef migrations add <Nome> -p src/Cirth.Infrastructure -s src/Cirth.Web
 dotnet ef database update -p src/Cirth.Infrastructure -s src/Cirth.Web
 
 # Rodar Web em watch
-dotnet watch --project src/Cirth.Web
+make watch
 
-# Rodar testes
-dotnet test
+# Testes — ver seção abaixo para detalhes
+make test               # rápido, sem Docker
+make test-integration   # requer Docker
+make test-all           # tudo
+
+# Nova migration
+make migration NAME=NomeDaMigration
 
 # Build de produção
 dotnet publish src/Cirth.Web -c Release -o publish/web
 ```
 
 ## Testes
+
+O `Makefile` na raiz é o ponto de entrada canônico para testes:
+
+| Comando | O que roda | Docker? |
+|---|---|---|
+| `make test` | Domain.Tests + Application.Tests | Não |
+| `make test-integration` | Integration.Tests (Testcontainers) | Sim |
+| `make test-all` | Todos os projetos | Sim |
+
+Nunca use `dotnet test` sem path — o sln inclui integration tests que falham sem Docker.
 
 - Unit tests para Domain e Application: xUnit + FluentAssertions + NSubstitute.
 - Integration tests via Testcontainers para Postgres/Redis/Qdrant/MinIO. Sem mocks de infra real.
