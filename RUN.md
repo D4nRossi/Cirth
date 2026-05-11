@@ -2,30 +2,44 @@
 
 ## 1. Primeira vez (one-time)
 
+> **Status:** ✅ Concluído — secrets setados, App Registration criada no Entra ID.
+
 ```bash
 # 1. Copiar e ajustar variáveis de ambiente (para produção futura; dev usa appsettings.json direto)
 cp .env.example .env && chmod 600 .env
 
 # 2. Segredos do dev (ficam em ~/.microsoft/usersecrets/, nunca no repo)
-dotnet user-secrets set AzureAi:ApiKey      "<sua-chave-azure>"    --project src/Cirth.Web
-dotnet user-secrets set EntraId:ClientId    "<client-id-entra>"    --project src/Cirth.Web
+#    ✅ Já configurados:
+dotnet user-secrets set AzureAi:ApiKey       "<sua-chave-azure>"   --project src/Cirth.Web
+dotnet user-secrets set EntraId:ClientId     "<client-id-entra>"   --project src/Cirth.Web
 dotnet user-secrets set EntraId:ClientSecret "<client-secret>"     --project src/Cirth.Web
 
-# 3. Subir infra local
+# 3. Confiar no certificado HTTPS local (rodar uma vez)
+dotnet dev-certs https --trust
+
+# 4. Subir infra local
 docker compose -f docker-compose.infra.yml up -d
 
-# 4. Aplicar migrations
+# 5. Aplicar migrations
 make db-update
 
-# 5. Servidor
-make watch    # http://localhost:5000 (ou porta configurada)
+# 6. Servidor
+make watch    # https://localhost:5001
 ```
+
+**App Registration no Entra ID** (já configurada):
+
+| Campo | Valor |
+|---|---|
+| Redirect URI | `https://localhost:5001/signin-oidc` |
+| Front-channel logout URL | `https://localhost:5001/signout-callback-oidc` |
+| Tenant ID | `c050c98c-b463-4591-ac3b-deb782c0ba6e` |
 
 **Serviços disponíveis após o compose:**
 
 | Serviço | URL |
 |---|---|
-| Aplicação Web | http://localhost:5000 |
+| Aplicação Web | https://localhost:5001 |
 | MinIO Console | http://localhost:9001 (minioadmin / minioadmin123) |
 | Qdrant Dashboard | http://localhost:6333/dashboard |
 | Postgres | localhost:5432 (cirth / cirth_dev_pass) |
@@ -37,7 +51,7 @@ make watch    # http://localhost:5000 (ou porta configurada)
 
 ```bash
 docker compose -f docker-compose.infra.yml up -d   # só se os containers não estiverem rodando
-make watch                                          # inicia servidor com hot reload
+make watch                                          # https://localhost:5001 com hot reload
 make test                                           # testes unitários (sem Docker, rápido)
 ```
 
@@ -45,17 +59,17 @@ make test                                           # testes unitários (sem Doc
 
 ## 3. Checklist de testes manuais
 
-Rodar com a aplicação em `make watch` e infra no Docker.
+Rodar com `make watch` e infra no Docker.
 
 ### Auth
-- [ ] Acessar `http://localhost:5000` sem login → redireciona para Entra ID
+- [ ] Acessar `https://localhost:5001` sem login → redireciona para Entra ID
 - [ ] Login com conta Microsoft → retorna para `/`
 
 ### Documentos
 - [ ] `/documents` → lista vazia no primeiro acesso
 - [ ] Upload de arquivo `.pdf` ou `.txt` → card aparece com status "Pendente"
 - [ ] Upload de URL (ex: `https://example.com`) → card aparece com status "Pendente"
-- [ ] Worker processa o job → status muda para "Indexado" (requer `make worker` ou Worker rodando)
+- [ ] Worker processa o job → status muda para "Indexado"
 - [ ] Clicar em documento → página de detalhe
 
 ### Busca
