@@ -5,8 +5,9 @@
 *.key
 
 # .NET
-bin/
-obj/
+[Bb]in/
+[Bb]in\*/
+[Oo]bj/
 out/
 publish/
 *.user
