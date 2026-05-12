@@ -85,6 +85,10 @@ else
             else
                 Snackbar.Add(result.Error!.Message, Severity.Error);
         }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erro ao carregar documentos: {ex.Message}", Severity.Error);
+        }
         finally
         {
             _loading = false;

@@ -55,11 +55,21 @@ else
     private async Task Search()
     {
         _loading = true;
-        var result = await Mediator.Send(new ListSavedAnswersQuery(string.IsNullOrWhiteSpace(_search) ? null : _search));
-        if (result.IsSuccess)
-            _answers = result.Value!.ToList();
-        else
-            Snackbar.Add(result.Error!.Message, Severity.Error);
-        _loading = false;
+        try
+        {
+            var result = await Mediator.Send(new ListSavedAnswersQuery(string.IsNullOrWhiteSpace(_search) ? null : _search));
+            if (result.IsSuccess)
+                _answers = result.Value!.ToList();
+            else
+                Snackbar.Add(result.Error!.Message, Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erro ao buscar respostas: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
     }
 }

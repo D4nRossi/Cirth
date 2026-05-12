@@ -91,31 +91,51 @@ else
     private async Task LoadCollections()
     {
         _loading = true;
-        var result = await Mediator.Send(new ListCollectionsQuery());
-        if (result.IsSuccess)
-            _collections = result.Value!.ToList();
-        else
-            Snackbar.Add(result.Error!.Message, Severity.Error);
-        _loading = false;
+        try
+        {
+            var result = await Mediator.Send(new ListCollectionsQuery());
+            if (result.IsSuccess)
+                _collections = result.Value!.ToList();
+            else
+                Snackbar.Add(result.Error!.Message, Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erro ao carregar coleções: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
     }
 
     private async Task CreateCollection()
     {
         if (string.IsNullOrWhiteSpace(_newName)) return;
         _saving = true;
-        var result = await Mediator.Send(new CreateCollectionCommand(_newName.Trim(), _newDesc.Trim().NullIfEmpty()));
-        _saving = false;
-        if (result.IsSuccess)
+        try
         {
-            Snackbar.Add("Coleção criada!", Severity.Success);
-            _createOpen = false;
-            _newName = string.Empty;
-            _newDesc = string.Empty;
-            await LoadCollections();
+            var result = await Mediator.Send(new CreateCollectionCommand(_newName.Trim(), _newDesc.Trim().NullIfEmpty()));
+            if (result.IsSuccess)
+            {
+                Snackbar.Add("Coleção criada!", Severity.Success);
+                _createOpen = false;
+                _newName = string.Empty;
+                _newDesc = string.Empty;
+                await LoadCollections();
+            }
+            else
+            {
+                Snackbar.Add(result.Error!.Message, Severity.Error);
+            }
         }
-        else
+        catch (Exception ex)
         {
-            Snackbar.Add(result.Error!.Message, Severity.Error);
+            Snackbar.Add($"Erro ao criar coleção: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
         }
     }
 }

@@ -88,9 +88,22 @@ else if (_result is not null)
     {
         if (string.IsNullOrWhiteSpace(_query)) return;
         _loading = true;
-        var result = await Mediator.Send(new HybridSearchQuery(_query));
-        if (result.IsSuccess) _result = result.Value;
-        _loading = false;
+        try
+        {
+            var result = await Mediator.Send(new HybridSearchQuery(_query));
+            if (result.IsSuccess)
+                _result = result.Value;
+            else
+                _result = null;
+        }
+        catch
+        {
+            _result = null;
+        }
+        finally
+        {
+            _loading = false;
+        }
     }
 
     private async Task OnKeyDown(KeyboardEventArgs e)

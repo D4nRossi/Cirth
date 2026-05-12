@@ -50,7 +50,6 @@
 
             <MudDivider Class="mb-3" />
 
-            {{!-- Tag management --}}
             <MudText Typo="Typo.subtitle2" Class="mb-2">Tags</MudText>
 
             @if (_loadingTags)
@@ -68,7 +67,7 @@
                                  Variant="@(selected ? Variant.Filled : Variant.Outlined)"
                                  Style="@GetTagStyle(tag, selected)"
                                  OnClick="@(() => ToggleTag(tag.Id))"
-                                 icon="@(selected ? Icons.Material.Filled.Check : "")">
+                                 Icon="@(selected ? Icons.Material.Filled.Check : "")">
                             @tag.Name
                         </MudChip>
                     }
@@ -91,9 +90,9 @@
         </MudForm>
     </DialogContent>
     <DialogActions>
-        <MudButton OnClick="@Cancel">Cancelar</MudButton>
+        <MudButton OnClick="@Cancel" Disabled="@_uploading">Cancelar</MudButton>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@Upload"
-                   Disabled="@(_uploading || !_isValid)">
+                   Disabled="@_uploading">
             @if (_uploading)
             {
                 <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
@@ -125,10 +124,20 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var result = await Mediator.Send(new ListTagsQuery());
-        if (result.IsSuccess)
-            _tags = result.Value!.ToList();
-        _loadingTags = false;
+        try
+        {
+            var result = await Mediator.Send(new ListTagsQuery());
+            if (result.IsSuccess)
+                _tags = result.Value!.ToList();
+        }
+        catch
+        {
+            // Tags failed to load — user can still create inline
+        }
+        finally
+        {
+            _loadingTags = false;
+        }
     }
 
     private void ToggleTag(Guid id)
@@ -141,22 +150,32 @@
     {
         if (string.IsNullOrWhiteSpace(_newTagName)) return;
         _creatingTag = true;
-        var color = IsValidHex(_newTagColor) ? _newTagColor : null;
-        var result = await Mediator.Send(new CreateTagCommand(_newTagName.Trim(), color));
-        _creatingTag = false;
-        if (result.IsSuccess)
+        try
         {
-            var dto = result.Value!;
-            _tags.Add(dto);
-            _tags = [.. _tags.OrderBy(t => t.Name)];
-            _selectedTagIds.Add(dto.Id);
-            _newTagName = string.Empty;
-            _newTagColor = string.Empty;
-            Snackbar.Add($"Tag \"{dto.Name}\" criada.", Severity.Success);
+            var color = IsValidHex(_newTagColor) ? _newTagColor : null;
+            var result = await Mediator.Send(new CreateTagCommand(_newTagName.Trim(), color));
+            if (result.IsSuccess)
+            {
+                var dto = result.Value!;
+                _tags.Add(dto);
+                _tags = [.. _tags.OrderBy(t => t.Name)];
+                _selectedTagIds.Add(dto.Id);
+                _newTagName = string.Empty;
+                _newTagColor = string.Empty;
+                Snackbar.Add($"Tag \"{dto.Name}\" criada.", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add(result.Error!.Message, Severity.Warning);
+            }
         }
-        else
+        catch (Exception ex)
         {
-            Snackbar.Add(result.Error!.Message, Severity.Warning);
+            Snackbar.Add($"Erro ao criar tag: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _creatingTag = false;
         }
     }
 
@@ -180,7 +199,11 @@
     private async Task Upload()
     {
         await _form.Validate();
-        if (!_isValid) return;
+        if (!_isValid)
+        {
+            Snackbar.Add("Preencha os campos obrigatórios.", Severity.Warning);
+            return;
+        }
 
         _uploading = true;
         try
@@ -189,6 +212,12 @@
 
             if (_mode == "url")
             {
+                if (!Uri.IsWellFormedUriString(_url, UriKind.Absolute))
+                {
+                    Snackbar.Add("URL inválida.", Severity.Warning);
+                    return;
+                }
+
                 result = await Mediator.Send(new UploadDocumentCommand(
                     _title, "url.txt", Stream.Null, "text/plain", 0,
                     _author.NullIfEmpty(), true, _url));
@@ -200,10 +229,12 @@
                     Snackbar.Add("Selecione um arquivo.", Severity.Warning);
                     return;
                 }
+
+                var mimeType = ResolveMimeType(_file);
                 const long MaxSize = 50 * 1024 * 1024;
                 await using var stream = _file.OpenReadStream(MaxSize);
                 result = await Mediator.Send(new UploadDocumentCommand(
-                    _title, _file.Name, stream, _file.ContentType, _file.Size,
+                    _title, _file.Name, stream, mimeType, _file.Size,
                     _author.NullIfEmpty(), false, null));
             }
 
@@ -213,18 +244,40 @@
                 return;
             }
 
-            // Apply selected tags
             var docId = result.Value!.DocumentId;
             foreach (var tagId in _selectedTagIds)
-                await Mediator.Send(new AddTagToDocumentCommand(docId, tagId));
+            {
+                try { await Mediator.Send(new AddTagToDocumentCommand(docId, tagId)); }
+                catch { /* tag assignment failure should not block upload success */ }
+            }
 
             Snackbar.Add("Documento enviado e em processamento!", Severity.Success);
             MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erro ao enviar documento: {ex.Message}", Severity.Error);
         }
         finally
         {
             _uploading = false;
         }
+    }
+
+    private static string ResolveMimeType(IBrowserFile file)
+    {
+        var ct = file.ContentType;
+        if (!string.IsNullOrWhiteSpace(ct) && ct != "application/octet-stream")
+            return ct;
+
+        return Path.GetExtension(file.Name).ToLowerInvariant() switch
+        {
+            ".pdf"  => "application/pdf",
+            ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ".md" or ".markdown" => "text/markdown",
+            ".html" or ".htm"    => "text/html",
+            _       => "text/plain"
+        };
     }
 
     private static string FormatSize(long bytes)

@@ -85,32 +85,52 @@ else
     private async Task LoadTags()
     {
         _loading = true;
-        var result = await Mediator.Send(new ListTagsQuery());
-        if (result.IsSuccess)
-            _tags = result.Value!.ToList();
-        else
-            Snackbar.Add(result.Error!.Message, Severity.Error);
-        _loading = false;
+        try
+        {
+            var result = await Mediator.Send(new ListTagsQuery());
+            if (result.IsSuccess)
+                _tags = result.Value!.ToList();
+            else
+                Snackbar.Add(result.Error!.Message, Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erro ao carregar tags: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
     }
 
     private async Task CreateTag()
     {
         if (string.IsNullOrWhiteSpace(_newName)) return;
         _saving = true;
-        var color = IsValidColor(_newColor) ? _newColor : null;
-        var result = await Mediator.Send(new CreateTagCommand(_newName.Trim(), color));
-        _saving = false;
-        if (result.IsSuccess)
+        try
         {
-            Snackbar.Add("Tag criada!", Severity.Success);
-            _createOpen = false;
-            _newName = string.Empty;
-            _newColor = string.Empty;
-            await LoadTags();
+            var color = IsValidColor(_newColor) ? _newColor : null;
+            var result = await Mediator.Send(new CreateTagCommand(_newName.Trim(), color));
+            if (result.IsSuccess)
+            {
+                Snackbar.Add("Tag criada!", Severity.Success);
+                _createOpen = false;
+                _newName = string.Empty;
+                _newColor = string.Empty;
+                await LoadTags();
+            }
+            else
+            {
+                Snackbar.Add(result.Error!.Message, Severity.Error);
+            }
         }
-        else
+        catch (Exception ex)
         {
-            Snackbar.Add(result.Error!.Message, Severity.Error);
+            Snackbar.Add($"Erro ao criar tag: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
         }
     }
 
