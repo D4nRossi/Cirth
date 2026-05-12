@@ -3,7 +3,6 @@
 @inject IMediator Mediator
 @inject ISnackbar Snackbar
 @inject NavigationManager Nav
-@inject IDialogService Dialog
 
 <PageTitle>Documentos — Cirth</PageTitle>
 
@@ -18,7 +17,7 @@
     </MudItem>
     <MudItem xs="12" sm="4" Class="d-flex justify-end align-center">
         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Upload"
-                   OnClick="OpenUploadDialog">
+                   Href="/documents/upload">
             Novo documento
         </MudButton>
     </MudItem>
@@ -95,12 +94,4 @@ else
         }
     }
 
-    private async Task OpenUploadDialog()
-    {
-        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
-        var dialog = await Dialog.ShowAsync<UploadDocumentDialog>("Novo documento", options);
-        var result = await dialog.Result;
-        if (result is { Canceled: false })
-            await LoadDocuments();
-    }
 }

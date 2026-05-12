@@ -1,110 +1,121 @@
+@page "/documents/upload"
+@attribute [Authorize]
 @inject IMediator Mediator
 @inject ISnackbar Snackbar
+@inject NavigationManager Nav
+
 @using TagDto = Cirth.Application.Features.Tags.CreateTag.TagDto
 
-<MudDialog Style="min-width:560px">
-    <TitleContent>
-        <MudText Typo="Typo.h6">Novo documento</MudText>
-    </TitleContent>
-    <DialogContent>
-        <MudForm @ref="_form" @bind-IsValid="_isValid">
+<PageTitle>Novo documento — Cirth</PageTitle>
 
-            <MudTextField @bind-Value="_title" Label="Título" Required="true"
-                          RequiredError="Título é obrigatório" Variant="Variant.Outlined"
-                          Class="mb-3" />
+<div class="d-flex align-center gap-3 mb-4">
+    <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="@(() => Nav.NavigateTo("/documents"))"
+                   title="Voltar" />
+    <MudText Typo="Typo.h4" Style="font-family:'Cinzel',serif">Novo documento</MudText>
+</div>
 
-            <MudToggleGroup T="string" @bind-Value="_mode" SelectionMode="SelectionMode.SingleSelection"
-                            Class="mb-3">
-                <MudToggleItem Value="@("file")">Arquivo</MudToggleItem>
-                <MudToggleItem Value="@("url")">URL</MudToggleItem>
-            </MudToggleGroup>
+<MudPaper Class="pa-6" Elevation="2" Style="max-width:760px">
+    <MudForm @ref="_form" @bind-IsValid="_isValid">
 
-            @if (_mode == "file")
-            {
-                <MudFileUpload T="IBrowserFile" @bind-Files="_file" Accept=".pdf,.docx,.md,.txt,.html"
-                               Class="mb-3">
-                    <ActivatorContent>
-                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.AttachFile">
-                            Selecionar arquivo
-                        </MudButton>
-                    </ActivatorContent>
-                    <SelectedTemplate>
-                        @if (context is not null)
-                        {
-                            <MudText Typo="Typo.body2" Class="mt-1 ml-1">
-                                @context.Name (@FormatSize(context.Size))
-                            </MudText>
-                        }
-                    </SelectedTemplate>
-                </MudFileUpload>
-            }
-            else
-            {
-                <MudTextField @bind-Value="_url" Label="URL" Placeholder="https://..." Class="mb-3"
-                              Variant="Variant.Outlined"
-                              Validation="@((Func<string, string?>)ValidateUrl)" />
-            }
+        <MudTextField @bind-Value="_title" Label="Título" Required="true"
+                      RequiredError="Título é obrigatório" Variant="Variant.Outlined"
+                      Class="mb-3" />
 
-            <MudTextField @bind-Value="_author" Label="Autor (opcional)" Variant="Variant.Outlined"
-                          Class="mb-4" />
+        <MudToggleGroup T="string" @bind-Value="_mode" SelectionMode="SelectionMode.SingleSelection"
+                        Class="mb-3">
+            <MudToggleItem Value="@("file")">Arquivo</MudToggleItem>
+            <MudToggleItem Value="@("url")">URL</MudToggleItem>
+        </MudToggleGroup>
 
-            <MudDivider Class="mb-3" />
-
-            <MudText Typo="Typo.subtitle2" Class="mb-2">Tags</MudText>
-
-            @if (_loadingTags)
-            {
-                <MudProgressLinear Indeterminate="true" Class="mb-2" />
-            }
-            else if (_tags.Count > 0)
-            {
-                <div class="d-flex flex-wrap gap-1 mb-3">
-                    @foreach (var tag in _tags)
+        @if (_mode == "file")
+        {
+            <MudFileUpload T="IBrowserFile" @bind-Files="_file" Accept=".pdf,.docx,.md,.txt,.html"
+                           Class="mb-3">
+                <ActivatorContent>
+                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.AttachFile">
+                        Selecionar arquivo
+                    </MudButton>
+                </ActivatorContent>
+                <SelectedTemplate>
+                    @if (context is not null)
                     {
-                        var selected = _selectedTagIds.Contains(tag.Id);
-                        <MudChip T="string"
-                                 Size="Size.Small"
-                                 Variant="@(selected ? Variant.Filled : Variant.Outlined)"
-                                 Style="@GetTagStyle(tag, selected)"
-                                 OnClick="@(() => ToggleTag(tag.Id))"
-                                 Icon="@(selected ? Icons.Material.Filled.Check : "")">
-                            @tag.Name
-                        </MudChip>
+                        <MudText Typo="Typo.body2" Class="mt-1 ml-1">
+                            @context.Name (@FormatSize(context.Size))
+                        </MudText>
                     }
-                </div>
-            }
+                </SelectedTemplate>
+            </MudFileUpload>
+        }
+        else
+        {
+            <MudTextField @bind-Value="_url" Label="URL" Placeholder="https://..." Class="mb-3"
+                          Variant="Variant.Outlined"
+                          Validation="@((Func<string, string?>)ValidateUrl)" />
+        }
 
-            <div class="d-flex align-center gap-2">
-                <MudTextField @bind-Value="_newTagName" Label="Nova tag" Variant="Variant.Outlined"
-                              Margin="Margin.Dense" MaxLength="100" Style="flex:1" />
-                <MudTextField @bind-Value="_newTagColor" Label="Cor" Variant="Variant.Outlined"
-                              Margin="Margin.Dense" MaxLength="7" Placeholder="#RRGGBB"
-                              Style="width:100px" />
-                <MudIconButton Icon="@Icons.Material.Filled.AddCircle"
-                               Color="Color.Primary" Size="Size.Medium"
-                               Disabled="@(string.IsNullOrWhiteSpace(_newTagName) || _creatingTag)"
-                               OnClick="CreateNewTag"
-                               title="Criar tag" />
+        <MudTextField @bind-Value="_author" Label="Autor (opcional)" Variant="Variant.Outlined"
+                      Class="mb-4" />
+
+        <MudDivider Class="mb-3" />
+
+        <MudText Typo="Typo.subtitle2" Class="mb-2">Tags</MudText>
+
+        @if (_loadingTags)
+        {
+            <MudProgressLinear Indeterminate="true" Class="mb-2" />
+        }
+        else if (_tags.Count > 0)
+        {
+            <div class="d-flex flex-wrap gap-1 mb-3">
+                @foreach (var tag in _tags)
+                {
+                    var selected = _selectedTagIds.Contains(tag.Id);
+                    <MudChip T="string"
+                             Size="Size.Small"
+                             Variant="@(selected ? Variant.Filled : Variant.Outlined)"
+                             Style="@GetTagStyle(tag, selected)"
+                             OnClick="@(() => ToggleTag(tag.Id))"
+                             Icon="@(selected ? Icons.Material.Filled.Check : "")">
+                        @tag.Name
+                    </MudChip>
+                }
             </div>
+        }
 
-        </MudForm>
-    </DialogContent>
-    <DialogActions>
-        <MudButton OnClick="@Cancel" Disabled="@_uploading">Cancelar</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@Upload"
-                   Disabled="@_uploading">
-            @if (_uploading)
-            {
-                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
-            }
-            Enviar
-        </MudButton>
-    </DialogActions>
-</MudDialog>
+        <div class="d-flex align-center gap-2 mb-4">
+            <MudTextField @bind-Value="_newTagName" Label="Nova tag" Variant="Variant.Outlined"
+                          Margin="Margin.Dense" MaxLength="100" Style="flex:1" />
+            <MudTextField @bind-Value="_newTagColor" Label="Cor" Variant="Variant.Outlined"
+                          Margin="Margin.Dense" MaxLength="7" Placeholder="#RRGGBB"
+                          Style="width:120px" />
+            <MudIconButton Icon="@Icons.Material.Filled.AddCircle"
+                           Color="Color.Primary" Size="Size.Medium"
+                           Disabled="@(string.IsNullOrWhiteSpace(_newTagName) || _creatingTag)"
+                           OnClick="CreateNewTag"
+                           title="Criar tag" />
+        </div>
+
+        <MudDivider Class="mb-3" />
+
+        <div class="d-flex justify-end gap-2">
+            <MudButton Variant="Variant.Text" OnClick="@(() => Nav.NavigateTo("/documents"))"
+                       Disabled="@_uploading">
+                Cancelar
+            </MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@Upload"
+                       Disabled="@_uploading">
+                @if (_uploading)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                }
+                Enviar
+            </MudButton>
+        </div>
+
+    </MudForm>
+</MudPaper>
 
 @code {
-    [CascadingParameter] public MudDialogInstance MudDialog { get; set; } = null!;
-
     private MudForm _form = null!;
     private bool _isValid;
     private bool _uploading;
@@ -114,7 +125,6 @@
     private string _author = string.Empty;
     private IBrowserFile? _file;
 
-    // Tags
     private bool _loadingTags = true;
     private bool _creatingTag;
     private List<TagDto> _tags = [];
@@ -194,8 +204,6 @@
     private string? ValidateUrl(string url) =>
         Uri.IsWellFormedUriString(url, UriKind.Absolute) ? null : "URL inválida";
 
-    private void Cancel() => MudDialog.Cancel();
-
     private async Task Upload()
     {
         await _form.Validate();
@@ -252,7 +260,7 @@
             }
 
             Snackbar.Add("Documento enviado e em processamento!", Severity.Success);
-            MudDialog.Close(DialogResult.Ok(true));
+            Nav.NavigateTo("/documents");
         }
         catch (Exception ex)
         {
