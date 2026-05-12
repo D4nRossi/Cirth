@@ -62,6 +62,20 @@ public interface IJobQueue
     Task<IReadOnlyList<JobRecord>> DequeueAsync(int batchSize, CancellationToken ct);
     Task CompleteAsync(JobId jobId, CancellationToken ct);
     Task FailAsync(JobId jobId, string error, CancellationToken ct);
+
+    /// <summary>
+    /// Moves jobs stuck in Processing for longer than <paramref name="threshold"/> back to
+    /// Retrying so the next Dequeue picks them up. Used by StuckJobRecoveryService to
+    /// recover from worker crashes that happened mid-job. Returns count of affected rows.
+    /// </summary>
+    Task<int> RecoverStuckJobsAsync(TimeSpan threshold, CancellationToken ct);
+
+    /// <summary>
+    /// Resets all jobs in Failed status back to Pending with Attempts=0. Used by the admin
+    /// "Retry failed jobs" action — typically after infra (e.g. AI deployment) was down.
+    /// Returns count of affected rows.
+    /// </summary>
+    Task<int> RetryFailedJobsAsync(CancellationToken ct);
 }
 
 public sealed record JobRecord(JobId Id, string Type, string PayloadJson, int Attempts, int MaxAttempts);

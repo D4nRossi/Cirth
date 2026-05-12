@@ -23,6 +23,7 @@ try
     builder.Services.AddScoped<WorkerTenantProvider>();
     builder.Services.AddScoped<ITenantProvider>(sp => sp.GetRequiredService<WorkerTenantProvider>());
     builder.Services.AddHostedService<JobPollingService>();
+    builder.Services.AddHostedService<StuckJobRecoveryService>();
 
     var host = builder.Build();
     host.Run();

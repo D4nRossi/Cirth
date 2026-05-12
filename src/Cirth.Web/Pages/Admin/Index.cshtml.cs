@@ -1,4 +1,5 @@
 using Cirth.Application.Features.Admin.GetSystemStatus;
+using Cirth.Application.Features.Admin.RetryFailedJobs;
 using Cirth.Application.Features.Identity.GetMyProfile;
 using Cirth.Web.Infrastructure;
 using MediatR;
@@ -31,5 +32,25 @@ public sealed class IndexModel(IMediator mediator) : CirthPageModel(mediator)
             Toast($"Erro ao verificar conexões: {ex.Message}", ToastLevel.Error);
             return Partial("_Status", (SystemStatusDto?)null);
         }
+    }
+
+    public async Task<IActionResult> OnPostRetryFailedJobsAsync(CancellationToken ct)
+    {
+        try
+        {
+            var retry = await Mediator.Send(new RetryFailedJobsCommand(), ct);
+            if (retry.IsSuccess)
+                Toast($"{retry.Value} job(s) reenviado(s) para a fila.", ToastLevel.Success);
+            else
+                Toast(retry.Error!.Message, ToastLevel.Error);
+        }
+        catch (Exception ex)
+        {
+            Toast($"Erro ao reprocessar: {ex.Message}", ToastLevel.Error);
+        }
+
+        // Refresh the status panel after the retry so the user sees the current state.
+        var status = await Mediator.Send(new GetSystemStatusQuery(), ct);
+        return Partial("_Status", status.IsSuccess ? status.Value : null);
     }
 }

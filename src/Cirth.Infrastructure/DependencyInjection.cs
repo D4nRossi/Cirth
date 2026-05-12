@@ -81,27 +81,38 @@ public static class DependencyInjection
         });
         services.AddScoped<IObjectStorage, MinioObjectStorage>();
 
-        // Azure AI Foundry — embeddings
+        // Azure AI Foundry — embeddings (legacy endpoint pattern, AzureOpenAIClient handles it)
+        // URL: https://X.cognitiveservices.azure.com/openai/deployments/{model}/embeddings?api-version=...
         services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(_ =>
         {
-            var endpoint = configuration["AzureAi:Endpoint"]!;
-            var apiKey = configuration["AzureAi:ApiKey"]!;
-            var deployment = configuration["AzureAi:EmbeddingDeployment"] ?? "text-embedding-3-small";
+            var endpoint = configuration["AzureAi:Embedding:Endpoint"]
+                ?? throw new InvalidOperationException("AzureAi:Embedding:Endpoint is required.");
+            var apiKey = configuration["AzureAi:Embedding:ApiKey"]
+                ?? configuration["AzureAi:ApiKey"]
+                ?? throw new InvalidOperationException("AzureAi:Embedding:ApiKey (or fallback AzureAi:ApiKey) is required.");
+            var deployment = configuration["AzureAi:Embedding:Deployment"] ?? "text-embedding-ada-002";
             return new AzureOpenAIClient(new Uri(endpoint), new Azure.AzureKeyCredential(apiKey))
                 .GetEmbeddingClient(deployment)
                 .AsIEmbeddingGenerator();
         });
         services.AddScoped<IEmbeddingService, AzureAiEmbeddingService>();
 
-        // Azure AI Foundry — chat
+        // Azure AI Foundry — chat (NEW /openai/v1 endpoint, requires raw OpenAI SDK with endpoint override)
+        // URL: https://X.openai.azure.com/openai/v1/chat/completions  — body carries model id.
+        // AzureOpenAIClient still uses the legacy /openai/deployments/{name}/... path which 404s here.
         services.AddSingleton<IChatClient>(_ =>
         {
-            var endpoint = configuration["AzureAi:Endpoint"]!;
-            var apiKey = configuration["AzureAi:ApiKey"]!;
-            var deployment = configuration["AzureAi:ChatDeployment"] ?? "gpt-4.1";
-            return new AzureOpenAIClient(new Uri(endpoint), new Azure.AzureKeyCredential(apiKey))
-                .GetChatClient(deployment)
-                .AsIChatClient();
+            var endpoint = configuration["AzureAi:Chat:Endpoint"]
+                ?? throw new InvalidOperationException("AzureAi:Chat:Endpoint is required.");
+            var apiKey = configuration["AzureAi:Chat:ApiKey"]
+                ?? configuration["AzureAi:ApiKey"]
+                ?? throw new InvalidOperationException("AzureAi:Chat:ApiKey (or fallback AzureAi:ApiKey) is required.");
+            var deployment = configuration["AzureAi:Chat:Deployment"] ?? "gpt-4.1";
+            var chatClient = new OpenAI.Chat.ChatClient(
+                model: deployment,
+                credential: new System.ClientModel.ApiKeyCredential(apiKey),
+                options: new OpenAI.OpenAIClientOptions { Endpoint = new Uri(endpoint) });
+            return chatClient.AsIChatClient();
         });
         services.AddScoped<ILlmChatService, AzureAiLlmService>();
 

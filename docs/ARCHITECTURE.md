@@ -308,6 +308,47 @@ Código (em `Pages/Shared/_Layout.cshtml`):
 <body hx-headers='@hxHeaders'>
 ```
 
+### Azure AI Foundry — chat e embedding em endpoints diferentes
+A Foundry serve chat e embedding por hosts distintos com path/SDK incompatíveis:
+
+- **Chat** (`https://<resource>.openai.azure.com/openai/v1/chat/completions`): Responses API nova. Usa `OpenAI.Chat.ChatClient` direto com endpoint override (`AzureOpenAIClient` gera o path antigo e bate 404 DeploymentNotFound).
+- **Embedding** (`https://<resource>.cognitiveservices.azure.com/openai/deployments/{name}/embeddings`): endpoint legacy. Usa `AzureOpenAIClient.GetEmbeddingClient(name)` normalmente.
+
+DI em `Cirth.Infrastructure/DependencyInjection.cs`:
+
+```csharp
+// Chat — OpenAI SDK puro com endpoint override
+services.AddSingleton<IChatClient>(_ =>
+    new OpenAI.Chat.ChatClient(
+        model: configuration["AzureAi:Chat:Deployment"],
+        credential: new ApiKeyCredential(configuration["AzureAi:Chat:ApiKey"]),
+        options: new OpenAIClientOptions { Endpoint = new Uri(configuration["AzureAi:Chat:Endpoint"]) })
+    .AsIChatClient());
+
+// Embedding — Azure.AI.OpenAI normal
+services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(_ =>
+    new AzureOpenAIClient(new Uri(configuration["AzureAi:Embedding:Endpoint"]), new AzureKeyCredential(...))
+        .GetEmbeddingClient(configuration["AzureAi:Embedding:Deployment"])
+        .AsIEmbeddingGenerator());
+```
+
+### Health probes da IA — não-persistentes
+`CheckChatAsync` e `CheckEmbeddingAsync` no `SystemHealthService` chamam a IA real (sem mocks) com payloads mínimos:
+- Chat: `GetResponseAsync([new(User, "ok")], { MaxOutputTokens = 1 })` — 1 token in/out, ~ ms de custo.
+- Embedding: `GenerateAsync(["ok"])` — single embedding.
+
+Resultados não são persistidos em DB, não passam por quotas, não geram side effects. Servem só pra confirmar que o deployment existe e a chave é válida. Timeout de 15s (chat) e 5s (resto).
+
+### Fila de jobs — recovery automático + retry manual
+
+**Modelo** (em `Cirth.Domain.Jobs.IngestionJob`): estados `Pending → Processing → Completed | Retrying → ... | Failed`. `Fail(error)` faz backoff exponencial (30s, 2min, 8min) até `MaxAttempts=3`, depois cai em `Failed` permanente.
+
+**Recovery automático** (`StuckJobRecoveryService` no Worker): a cada 2 min varre jobs em `Processing` com `updated_at < now - 10min` (worker crashou no meio) e move pra `Retrying` (ou `Failed` se já tinha atingido MaxAttempts). Configurável via `Worker:StuckJobScanIntervalSeconds` e `Worker:StuckJobThresholdMinutes`.
+
+**Retry manual** (`RetryFailedJobsCommand` na Application, exposto no `/Admin` → tab Conexões → botão "Reprocessar falhas"): zera `attempts` e move tudo em `Failed` pra `Pending`. Usar depois que uma falha de infra (ex.: IA fora do ar) for resolvida.
+
+Implementação raw-SQL em `PostgresJobQueue.RecoverStuckJobsAsync` e `RetryFailedJobsAsync` — bypassa filtro de tenant intencionalmente (operação global). Sem mensageria nem DLQ separada; Postgres é o broker.
+
 ### Health checks — armadilhas conhecidas
 `SystemHealthService` (em `Cirth.Infrastructure/Health/`) chama infraestrutura real. Duas pegadinhas que já mordemos:
 

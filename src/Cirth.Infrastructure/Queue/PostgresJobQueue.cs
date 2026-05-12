@@ -60,4 +60,46 @@ internal sealed class PostgresJobQueue(AppDbContext db, ILogger<PostgresJobQueue
             jobId.Value, job.Attempts, job.MaxAttempts, error);
         await db.SaveChangesAsync(ct);
     }
+
+    public async Task<int> RecoverStuckJobsAsync(TimeSpan threshold, CancellationToken ct)
+    {
+        var cutoff = DateTimeOffset.UtcNow - threshold;
+        // Raw SQL — bypasses EF query filter (tenant-scoped) on purpose, since the
+        // background recovery service runs at the global level (no tenant context).
+        // Decision: if a job has hit MaxAttempts already by the time we recover it,
+        // mark it permanently Failed; otherwise put it back on the queue.
+        var affected = await db.Database.ExecuteSqlInterpolatedAsync($"""
+            UPDATE jobs
+            SET status = CASE WHEN attempts >= max_attempts THEN 'Failed' ELSE 'Retrying' END,
+                next_run_at = {DateTimeOffset.UtcNow},
+                error = COALESCE(error, '') || ' [recovered from stuck Processing]',
+                updated_at = {DateTimeOffset.UtcNow}
+            WHERE status = 'Processing'
+              AND updated_at < {cutoff}
+            """, ct);
+
+        if (affected > 0)
+            logger.LogWarning("Recovered {Count} job(s) stuck in Processing (>{Threshold}m)",
+                affected, threshold.TotalMinutes);
+
+        return affected;
+    }
+
+    public async Task<int> RetryFailedJobsAsync(CancellationToken ct)
+    {
+        var affected = await db.Database.ExecuteSqlInterpolatedAsync($"""
+            UPDATE jobs
+            SET status = 'Pending',
+                attempts = 0,
+                next_run_at = {DateTimeOffset.UtcNow},
+                error = NULL,
+                updated_at = {DateTimeOffset.UtcNow}
+            WHERE status = 'Failed'
+            """, ct);
+
+        if (affected > 0)
+            logger.LogInformation("Manually re-queued {Count} failed job(s)", affected);
+
+        return affected;
+    }
 }

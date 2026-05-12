@@ -17,8 +17,8 @@ O nome vem de **Cirth**, o sistema rúnico dos Anões na Terra-média. A identid
 | UI Styling | CSS custom com design tokens Cirth (`wwwroot/css/cirth.css`) |
 | ORM | EF Core 10 com Npgsql |
 | Mediator/CQRS | MediatR |
-| LLM | Microsoft.Extensions.AI + Semantic Kernel, provider Azure AI Foundry |
-| Embeddings | `text-embedding-3-small` via Azure AI Foundry |
+| LLM | Microsoft.Extensions.AI + Semantic Kernel; **chat usa OpenAI SDK direto** com endpoint Azure AI Foundry (Responses API `/openai/v1`) |
+| Embeddings | `text-embedding-ada-002` via Azure.AI.OpenAI (endpoint legacy `cognitiveservices.azure.com`) |
 | RDBMS | PostgreSQL 16 (com `pg_trgm` e `tsvector` para BM25-like) |
 | Vector DB | Qdrant |
 | Cache | Redis 7 (cache-aside) |
@@ -147,10 +147,32 @@ Nunca use `dotnet test` sem path — o sln inclui integration tests que falham s
 - PRs disparam o pipeline (build + test + docker build). Merge em main faz push da imagem para GHCR.
 - Não commitar `.env`, segredos, binários, ou pastas `bin/obj/publish`.
 
+## Azure AI — endpoints duais (LEIA antes de mexer)
+
+A Foundry expõe dois endpoints diferentes para chat vs embedding, em hosts diferentes:
+
+| Operação | Endpoint base | Path acionado | SDK |
+|---|---|---|---|
+| Chat | `https://<resource>.openai.azure.com/openai/v1` | `/chat/completions` | **`OpenAI.Chat.ChatClient`** com `OpenAIClientOptions { Endpoint }` |
+| Embedding | `https://<resource>.cognitiveservices.azure.com/` | `/openai/deployments/{name}/embeddings?api-version=...` | **`AzureOpenAIClient.GetEmbeddingClient(name)`** |
+
+Por que duas SDKs:
+- O endpoint `/openai/v1` é a Responses API nova — o `AzureOpenAIClient` ainda gera o path antigo `/openai/deployments/{name}/...` e bate `404 DeploymentNotFound`. Solução: usar a SDK pura `OpenAI` com endpoint override.
+- O embedding ainda está no host legacy `cognitiveservices.azure.com`. `AzureOpenAIClient` aponta direito pra ele.
+
+Configuração (appsettings.json + user-secrets):
+
+```json
+"AzureAi": {
+  "Chat": { "Endpoint": "https://X.openai.azure.com/openai/v1", "ApiKey": "...", "Deployment": "gpt-4.1", "MiniDeployment": "gpt-4.1-mini" },
+  "Embedding": { "Endpoint": "https://X.cognitiveservices.azure.com/", "ApiKey": "...", "Deployment": "text-embedding-ada-002", "Dimensions": 1536 }
+}
+```
+
 ## RAG: regras do jogo
 
 - **Chunking**: usar `TextChunker` do Semantic Kernel. Tamanho padrão 800 tokens, overlap 100. Para Markdown/HTML/DOCX, chunk por estrutura primeiro, fallback para tamanho fixo.
-- **Embedding**: `text-embedding-3-small` (1536 dim). Modelo configurável em `appsettings`, mas trocar exige reembedar tudo (não trocar de leve).
+- **Embedding**: `text-embedding-ada-002` (1536 dim). Modelo configurável em `appsettings`, mas trocar exige reembedar tudo (não trocar de leve).
 - **Busca híbrida**: SEMPRE combinar BM25 (Postgres `ts_rank_cd`) + vector (Qdrant cosine) via Reciprocal Rank Fusion (k=60). Não usar só um dos dois sem ADR.
 - **Modelo de LLM por operação**:
   - Chat principal: `gpt-4.1`

@@ -8,11 +8,19 @@ else
 {
     <div class="flex items-center justify-between mb-3">
         <h3 style="margin:0">Status dos serviços</h3>
-        <button class="btn btn-outline btn-sm"
-                hx-get="/Admin?handler=Status"
-                hx-target="[data-tab-panel='status']" hx-swap="innerHTML">
-            ↻ Verificar
-        </button>
+        <div class="flex gap-2">
+            <button class="btn btn-outline btn-sm"
+                    hx-post="/Admin?handler=RetryFailedJobs"
+                    hx-target="[data-tab-panel='status']" hx-swap="innerHTML"
+                    hx-confirm="Reenviar todos os documentos travados em Failed pra fila novamente?">
+                ↻ Reprocessar falhas
+            </button>
+            <button class="btn btn-outline btn-sm"
+                    hx-get="/Admin?handler=Status"
+                    hx-target="[data-tab-panel='status']" hx-swap="innerHTML">
+                ↻ Verificar
+            </button>
+        </div>
     </div>
     <p class="text-caption mb-4">Verificado em @Model.CheckedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</p>
 
