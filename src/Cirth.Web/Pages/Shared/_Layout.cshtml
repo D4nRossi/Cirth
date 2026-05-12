@@ -1,4 +1,5 @@
 @inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpCtx
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
 @{
     var user = HttpCtx.HttpContext?.User;
     var isAuthenticated = user?.Identity?.IsAuthenticated ?? false;
@@ -8,6 +9,15 @@
     var isAdmin = user?.IsInRole("Admin") ?? false;
     var path = HttpCtx.HttpContext?.Request.Path.Value ?? "/";
     string activeIf(string prefix) => path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ? "active" : "";
+
+    // Antiforgery token — required by Razor Pages on every POST.
+    // Pre-render here so every HTMX request carries it in the `RequestVerificationToken`
+    // header (works for bare hx-post on elements outside a <form>, too).
+    var antiforgeryToken = HttpCtx.HttpContext is { } ctx
+        ? Antiforgery.GetAndStoreTokens(ctx).RequestToken
+        : string.Empty;
+    var hxHeaders = System.Text.Json.JsonSerializer.Serialize(
+        new Dictionary<string, string> { ["RequestVerificationToken"] = antiforgeryToken ?? "" });
 }
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -21,7 +31,7 @@
     <script src="~/js/htmx-sse.js" asp-append-version="true"></script>
     <script src="~/js/cirth.js" asp-append-version="true" defer></script>
 </head>
-<body hx-headers='{"RequestVerificationToken": ""}'>
+<body hx-headers='@hxHeaders'>
 
 @if (isAuthenticated)
 {

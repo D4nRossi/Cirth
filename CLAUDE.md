@@ -90,6 +90,7 @@ tests/
   - Toast vindo do server: handler chama `Toast(...)` → seta header `HX-Trigger: {"toast":{...}}` que o `cirth.js` consome.
   - Redirect pós-POST: `HxRedirect("/path")` (envia `HX-Redirect` no HTMX, `302` fora dele).
   - **NUNCA** use `data-hx-*` em atributos lidos por JS custom — HTMX 2.x auto-processa `data-hx-*` como se fossem `hx-*`, causando duplo-fire de requests. Use nomes neutros (ex.: `data-load-url`) para metadados consumidos só pelo nosso JS.
+  - **Antiforgery**: Razor Pages exige antiforgery em todos os POSTs. O `_Layout` injeta o token real via `IAntiforgery.GetAndStoreTokens(Context).RequestToken` no `hx-headers` do `<body>`. Isso cobre POSTs sem `<form>` (ex.: chips com `hx-post` no Documents/Upload). **Não esquecer**: novos POSTs precisam estar dentro da `<body>` do layout (qualquer página Razor Page herda automaticamente).
 - Streaming de chat usa **SSE** (`text/event-stream`): POST cacheia o request em `IMemoryCache`, retorna HTML com `sse-connect`; endpoint GET `/Chat/Stream/{id}` consome `IAsyncEnumerable<string>` da Application e emite eventos `token` / `done`.
 - **NÃO** chame Application handlers direto da view `.cshtml`. Sempre via PageModel.
 

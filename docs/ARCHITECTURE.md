@@ -289,6 +289,25 @@ await jobQueue.EnqueueAsync("ProcessDocument", JsonSerializer.Serialize(payload)
 
 Acessível via `GetSystemStatusQuery` (MediatR) na tela **Administração → Conexões** (apenas para `Admin`).
 
+### Antiforgery + HTMX
+Razor Pages valida antiforgery em **todo POST** por padrão. Sem token válido, a request volta `400 Bad Request` antes mesmo de o handler rodar — sintoma típico: clica em "Criar tag" e nada acontece.
+
+Forms `<form method="post">` recebem `__RequestVerificationToken` automaticamente do tag helper, mas dois cenários quebram esse caminho:
+1. **HTMX POSTs avulsos** (em `<span>`, `<button>` sem form) — não tem campo escondido nenhum.
+2. **Forms sem `asp-*`** (puramente HTMX) — o tag helper só dispara com pelo menos um `asp-` attribute em algumas versões; com `method="post"` puro funciona, mas é confiar em comportamento sutil.
+
+Solução adotada: renderizar o token no `<body hx-headers='{"RequestVerificationToken":"..."}'>` do `_Layout`. HTMX herda esses headers em toda request `hx-*`, então o antiforgery middleware sempre acha o header correto (mesmo em POSTs sem `<form>`). O cookie de antiforgery vem na primeira GET pra qualquer página do app.
+
+Código (em `Pages/Shared/_Layout.cshtml`):
+```csharp
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+@{
+    var antiforgeryToken = Antiforgery.GetAndStoreTokens(HttpCtx.HttpContext!).RequestToken;
+    var hxHeaders = JsonSerializer.Serialize(new Dictionary<string,string> { ["RequestVerificationToken"] = antiforgeryToken ?? "" });
+}
+<body hx-headers='@hxHeaders'>
+```
+
 ### Health checks — armadilhas conhecidas
 `SystemHealthService` (em `Cirth.Infrastructure/Health/`) chama infraestrutura real. Duas pegadinhas que já mordemos:
 
