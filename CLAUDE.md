@@ -12,8 +12,9 @@ O nome vem de **Cirth**, o sistema rúnico dos Anões na Terra-média. A identid
 
 | Camada | Tecnologia |
 |---|---|
-| Backend | .NET 10, ASP.NET Core, Blazor Server |
-| UI Components | MudBlazor com tema custom Cirth |
+| Backend | .NET 10, ASP.NET Core, **Razor Pages** (server-rendered) |
+| UI Interactivity | **HTMX 2.x** (+ htmx-sse para chat streaming) |
+| UI Styling | CSS custom com design tokens Cirth (`wwwroot/css/cirth.css`) |
 | ORM | EF Core 10 com Npgsql |
 | Mediator/CQRS | MediatR |
 | LLM | Microsoft.Extensions.AI + Semantic Kernel, provider Azure AI Foundry |
@@ -76,13 +77,20 @@ tests/
 - Validação via FluentValidation, plugada como `IPipelineBehavior`.
 - Pipeline behaviors: Logging → Validation → Tenant scoping → Handler.
 
-## Convenções de UI Blazor
+## Convenções de UI (Razor Pages + HTMX)
 
-- Páginas em `Cirth.Web/Components/Pages/`.
-- Componentes reutilizáveis em `Cirth.Web/Components/Shared/`.
-- Cada componente é arquivo único `.razor` (HTML + code-behind via `@code` no mesmo arquivo) salvo quando o code-behind passa de ~100 linhas.
-- Não chame Application handlers direto do Razor. Use serviços facade em `Cirth.Web/Services/` quando precisar de orquestração de UI.
-- Streaming de chat usa `IAsyncEnumerable<string>` consumido no componente via `await foreach`.
+- Páginas em `Cirth.Web/Pages/`, organizadas por feature (ex.: `Pages/Documents/Index.cshtml`, `Pages/Documents/Upload.cshtml`).
+- Cada página = par `Foo.cshtml` (view) + `Foo.cshtml.cs` (PageModel).
+- PageModels herdam de `Cirth.Web.Infrastructure.CirthPageModel` (helpers: `Toast`, `SendAsync`, `HxRedirect`, `IsHtmx`).
+- Layout único em `Pages/Shared/_Layout.cshtml`. Tema Cirth via `wwwroot/css/cirth.css` (classes utilitárias: `.btn`, `.card`, `.chip`, `.grid-N`, `.flex`, etc.). **Não usar frameworks CSS externos.**
+- Parciais (`_Foo.cshtml`) ficam ao lado da página que os usa. Servem como targets HTMX para swap (`hx-target`, `hx-swap="outerHTML"` ou `"beforeend"`).
+- HTMX patterns:
+  - Form submit com partial swap: `<form hx-post="...?handler=X" hx-target="#list" hx-swap="outerHTML">`.
+  - Debounced filtro: `hx-trigger="keyup changed delay:300ms"`.
+  - Toast vindo do server: handler chama `Toast(...)` → seta header `HX-Trigger: {"toast":{...}}` que o `cirth.js` consome.
+  - Redirect pós-POST: `HxRedirect("/path")` (envia `HX-Redirect` no HTMX, `302` fora dele).
+- Streaming de chat usa **SSE** (`text/event-stream`): POST cacheia o request em `IMemoryCache`, retorna HTML com `sse-connect`; endpoint GET `/Chat/Stream/{id}` consome `IAsyncEnumerable<string>` da Application e emite eventos `token` / `done`.
+- **NÃO** chame Application handlers direto da view `.cshtml`. Sempre via PageModel.
 
 ## Comandos comuns
 
@@ -181,5 +189,5 @@ Nunca use `dotnet test` sem path — o sln inclui integration tests que falham s
 - API REST pública na V1 (fica para V2).
 - Mídia (vídeo/áudio) na V1 (fica para V1.5).
 - Telas administrativas elaboradas. Foque em ingestão, busca, chat. Resto é mínimo.
-- Frontend fora de Blazor. Sem React, sem Angular, sem Vue.
+- Frontend fora de Razor Pages + HTMX. Sem React, sem Angular, sem Vue, sem Blazor (migrado out por instabilidade do circuito SignalR).
 - Bibliotecas pagas sem ADR.

@@ -1,0 +1,24 @@
+@page "/Error/{code:int?}"
+@model ErrorModel
+@{
+    ViewData["Title"] = $"Erro {Model.StatusCodeValue}";
+    Layout = "_Layout";
+}
+
+<div class="card-elev" style="max-width:560px; margin:80px auto;">
+    <h1>Algo deu errado</h1>
+    <p class="text-secondary">
+        @switch (Model.StatusCodeValue)
+        {
+            case 404: <text>A página que você procura não existe.</text> break;
+            case 403: <text>Você não tem permissão para acessar essa página.</text> break;
+            case 401: <text>Faça login para continuar.</text> break;
+            default: <text>Ocorreu um erro inesperado (HTTP @Model.StatusCodeValue).</text> break;
+        }
+    </p>
+    @if (!string.IsNullOrEmpty(Model.RequestId))
+    {
+        <p class="text-caption">Request ID: <code>@Model.RequestId</code></p>
+    }
+    <a href="/" class="btn btn-primary mt-4">Voltar ao início</a>
+</div>

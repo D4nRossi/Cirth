@@ -1,0 +1,39 @@
+@page "/Saved"
+@model Cirth.Web.Pages.Saved.IndexModel
+@{
+    ViewData["Title"] = "Respostas salvas — Cirth";
+}
+
+<h1 class="mb-4">Respostas salvas</h1>
+
+<form method="get" class="mb-4">
+    <div class="flex gap-2">
+        <input type="search" name="q" value="@Model.Query" placeholder="Buscar nas respostas salvas..."
+               class="input grow" autocomplete="off" />
+        <button type="submit" class="btn btn-outline">Buscar</button>
+    </div>
+</form>
+
+@if (Model.Answers.Count == 0)
+{
+    <div class="alert alert-info">Nenhuma resposta salva encontrada.</div>
+}
+else
+{
+    @foreach (var a in Model.Answers)
+    {
+        <details class="card mb-2">
+            <summary style="cursor:pointer; list-style:none;" class="flex items-center justify-between">
+                <strong>@a.Question</strong>
+                <span class="flex gap-3 text-caption">
+                    <span>★ @a.UtilityScore</span>
+                    <span>↻ @a.UsageCount</span>
+                </span>
+            </summary>
+            <div class="mt-3">
+                @Html.Raw(Markdig.Markdown.ToHtml(a.Answer))
+                <p class="text-caption mt-2">Salvo em @a.CreatedAt.LocalDateTime.ToString("dd/MM/yyyy")</p>
+            </div>
+        </details>
+    }
+}

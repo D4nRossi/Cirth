@@ -1,0 +1,20 @@
+@model IReadOnlyList<Cirth.Application.Features.Tags.CreateTag.TagDto>
+
+<div id="tag-list">
+    @if (Model.Count == 0)
+    {
+        <div class="alert alert-info">Nenhuma tag criada ainda. Tags ajudam a categorizar e filtrar seus documentos.</div>
+    }
+    else
+    {
+        <div class="card">
+            <div class="flex flex-wrap gap-2">
+                @foreach (var tag in Model)
+                {
+                    var style = tag.Color is null ? "" : $"background-color:{tag.Color};color:#fff;border-color:{tag.Color}";
+                    <span class="chip" style="@style">@tag.Name</span>
+                }
+            </div>
+        </div>
+    }
+</div>

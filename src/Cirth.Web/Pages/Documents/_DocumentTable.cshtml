@@ -1,0 +1,55 @@
+@model IReadOnlyList<Cirth.Application.Features.Documents.ListDocuments.DocumentSummaryDto>
+
+<div id="doc-table">
+    @if (Model.Count == 0)
+    {
+        <div class="alert alert-info">Nenhum documento encontrado. Faça upload do seu primeiro documento.</div>
+    }
+    else
+    {
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Título</th>
+                    <th>Tipo</th>
+                    <th>Status</th>
+                    <th>Versões</th>
+                    <th>Tags</th>
+                    <th>Atualizado</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var d in Model)
+                {
+                    <tr onclick="location.href='/Documents/@d.Id'">
+                        <td><a href="/Documents/@d.Id">@d.Title</a></td>
+                        <td><span class="chip">@d.SourceType</span></td>
+                        <td>
+                            @{
+                                var cls = d.Status switch
+                                {
+                                    "Indexed" => "chip-success",
+                                    "Processing" or "Pending" => "chip-warning",
+                                    "Failed" => "chip-error",
+                                    _ => ""
+                                };
+                            }
+                            <span class="chip @cls">@d.Status</span>
+                        </td>
+                        <td>@d.VersionCount</td>
+                        <td>
+                            <div class="flex gap-1 flex-wrap">
+                                @foreach (var t in d.Tags.Take(3))
+                                {
+                                    var style = t.Color is null ? "" : $"background-color:{t.Color};color:#fff;border-color:{t.Color}";
+                                    <span class="chip" style="@style">@t.Name</span>
+                                }
+                            </div>
+                        </td>
+                        <td>@d.UpdatedAt.LocalDateTime.ToString("dd/MM/yy HH:mm")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>

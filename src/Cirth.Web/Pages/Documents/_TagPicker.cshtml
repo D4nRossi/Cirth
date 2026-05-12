@@ -1,0 +1,51 @@
+@model Cirth.Web.Pages.Documents.TagPickerVm
+
+<div id="tag-picker">
+    @if (Model.Tags.Count > 0)
+    {
+        <div class="flex flex-wrap gap-2 mb-3">
+            @foreach (var tag in Model.Tags)
+            {
+                var selected = Model.SelectedIds.Contains(tag.Id);
+                var style = tag.Color is null
+                    ? ""
+                    : selected
+                        ? $"background-color:{tag.Color};color:#fff;border-color:{tag.Color}"
+                        : $"color:{tag.Color};border-color:{tag.Color}";
+                <span class="chip chip-toggle @(selected ? "chip-selected" : "")" style="@style"
+                      hx-post="/Documents/Upload?handler=ToggleTag"
+                      hx-vals='@($"{{\"tagId\":\"{tag.Id}\"}}")'
+                      hx-target="#tag-picker" hx-swap="outerHTML">
+                    @(selected ? "✓ " : "")@tag.Name
+                </span>
+                <input type="hidden" name="Input.SelectedTagIds" value="@tag.Id" form="" disabled />
+            }
+        </div>
+
+        @* Real hidden inputs that submit with the main form *@
+        @foreach (var id in Model.SelectedIds)
+        {
+            <input type="hidden" name="Input.SelectedTagIds" value="@id" />
+        }
+    }
+
+    <div class="flex gap-2 items-end">
+        <div class="form-field grow" style="margin-bottom:0">
+            <label>Nova tag</label>
+            <input name="newTagName" class="input" maxlength="100" placeholder="Nome..."
+                   id="new-tag-name" />
+        </div>
+        <div class="form-field" style="margin-bottom:0; width:140px">
+            <label>Cor (hex)</label>
+            <input name="newTagColor" class="input" maxlength="7" placeholder="#RRGGBB"
+                   id="new-tag-color" />
+        </div>
+        <button type="button" class="btn btn-outline btn-sm"
+                hx-post="/Documents/Upload?handler=CreateTag"
+                hx-include="#new-tag-name, #new-tag-color"
+                hx-target="#tag-picker" hx-swap="outerHTML"
+                hx-on::after-request="document.getElementById('new-tag-name').value=''; document.getElementById('new-tag-color').value=''">
+            + Criar tag
+        </button>
+    </div>
+</div>

@@ -1,0 +1,30 @@
+@page "/Tags"
+@model Cirth.Web.Pages.Tags.IndexModel
+@{
+    ViewData["Title"] = "Tags — Cirth";
+}
+
+<h1 class="mb-4">Tags</h1>
+
+<div class="card mb-4">
+    <h3>Nova tag</h3>
+    <form method="post" hx-post="/Tags?handler=Create"
+          hx-target="#tag-list" hx-swap="outerHTML"
+          hx-on::after-request="if(event.detail.successful) this.reset()">
+        <div asp-validation-summary="ModelOnly" class="field-error"></div>
+        <div class="flex gap-3 items-end">
+            <div class="form-field grow" style="margin-bottom:0">
+                <label asp-for="NewTag.Name">Nome</label>
+                <input asp-for="NewTag.Name" class="input" maxlength="100" autocomplete="off" required />
+                <span asp-validation-for="NewTag.Name" class="field-error"></span>
+            </div>
+            <div class="form-field" style="margin-bottom:0; width:140px">
+                <label asp-for="NewTag.Color">Cor (hex)</label>
+                <input asp-for="NewTag.Color" class="input" placeholder="#RRGGBB" maxlength="7" />
+            </div>
+            <button type="submit" class="btn btn-primary">Criar</button>
+        </div>
+    </form>
+</div>
+
+<partial name="_TagList" model="Model.Tags" />

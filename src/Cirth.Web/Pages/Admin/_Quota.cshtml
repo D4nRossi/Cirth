@@ -1,0 +1,14 @@
+@model (string label, int used, int limit, string unit)
+@{
+    var pct = Model.limit == 0 ? 0 : Math.Min(100.0, Model.used * 100.0 / Model.limit);
+    var color = pct >= 90 ? "var(--rune-red-soft)" : pct >= 70 ? "var(--amber-warning)" : "var(--moss-green-soft)";
+}
+<div>
+    <div class="flex justify-between mb-1">
+        <span class="text-secondary">@Model.label</span>
+        <span class="text-caption">@Model.used.ToString("N0") / @Model.limit.ToString("N0") @Model.unit</span>
+    </div>
+    <div class="progress" style="background:var(--border-faint)">
+        <div style="width:@(pct.ToString("F1", System.Globalization.CultureInfo.InvariantCulture))%; height:100%; background:@color; transition: width 200ms ease"></div>
+    </div>
+</div>

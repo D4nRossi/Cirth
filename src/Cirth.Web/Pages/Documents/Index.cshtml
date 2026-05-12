@@ -1,0 +1,18 @@
+@page "/Documents"
+@model Cirth.Web.Pages.Documents.IndexModel
+@{
+    ViewData["Title"] = "Documentos — Cirth";
+}
+
+<div class="flex items-center justify-between mb-4">
+    <h1 style="margin:0">Documentos</h1>
+    <a href="/Documents/Upload" class="btn btn-primary">↑ Novo documento</a>
+</div>
+
+<form method="get" class="mb-4">
+    <input type="search" name="q" value="@Model.Filter" placeholder="Filtrar..." class="input"
+           hx-get="/Documents?handler=Filter" hx-target="#doc-table" hx-trigger="keyup changed delay:300ms"
+           hx-swap="outerHTML" autocomplete="off" />
+</form>
+
+<partial name="_DocumentTable" model="Model.Documents" />

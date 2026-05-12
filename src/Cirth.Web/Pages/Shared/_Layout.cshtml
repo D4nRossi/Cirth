@@ -1,0 +1,86 @@
+@inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpCtx
+@{
+    var user = HttpCtx.HttpContext?.User;
+    var isAuthenticated = user?.Identity?.IsAuthenticated ?? false;
+    var displayName = user?.FindFirst("name")?.Value
+                   ?? user?.Identity?.Name
+                   ?? "Visitante";
+    var isAdmin = user?.IsInRole("Admin") ?? false;
+    var path = HttpCtx.HttpContext?.Request.Path.Value ?? "/";
+    string activeIf(string prefix) => path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ? "active" : "";
+}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@(ViewData["Title"] ?? "Cirth")</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@@500;600&family=Inter:wght@@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="~/css/cirth.css" asp-append-version="true" />
+    <script src="~/js/htmx.min.js" asp-append-version="true"></script>
+    <script src="~/js/htmx-sse.js" asp-append-version="true"></script>
+    <script src="~/js/cirth.js" asp-append-version="true" defer></script>
+</head>
+<body hx-headers='{"RequestVerificationToken": ""}'>
+
+@if (isAuthenticated)
+{
+    <div class="app">
+        <header class="appbar">
+            <a href="/" class="logo">Cirth</a>
+            <div class="spacer"></div>
+            <form action="/Search" method="get">
+                <input type="search" name="q" placeholder="Buscar no acervo..." autocomplete="off" />
+            </form>
+            <div class="spacer"></div>
+            <details class="user-menu">
+                <summary>@displayName</summary>
+                <div>
+                    <a href="/ApiKeys">API Keys</a>
+                    <a href="/signout">Sair</a>
+                </div>
+            </details>
+        </header>
+
+        <nav class="drawer">
+            <a href="/" class="nav-link @(path == "/" ? "active" : "")"><span class="icon">⌂</span> Início</a>
+            <a href="/Documents" class="nav-link @activeIf("/Documents")"><span class="icon">▤</span> Documentos</a>
+            <a href="/Chat" class="nav-link @activeIf("/Chat")"><span class="icon">✎</span> Chat RAG</a>
+            <a href="/Search" class="nav-link @activeIf("/Search")"><span class="icon">⌕</span> Busca</a>
+            <a href="/Saved" class="nav-link @activeIf("/Saved")"><span class="icon">☆</span> Respostas salvas</a>
+            <div class="nav-divider"></div>
+            <a href="/Collections" class="nav-link @activeIf("/Collections")"><span class="icon">▦</span> Coleções</a>
+            <a href="/Tags" class="nav-link @activeIf("/Tags")"><span class="icon">⬢</span> Tags</a>
+            @if (isAdmin)
+            {
+                <div class="nav-divider"></div>
+                <a href="/Admin" class="nav-link @activeIf("/Admin")"><span class="icon">⚙</span> Administração</a>
+            }
+        </nav>
+
+        <main class="main">
+            @RenderBody()
+        </main>
+    </div>
+}
+else
+{
+    <main class="main" style="max-width:560px; margin:80px auto;">
+        @RenderBody()
+    </main>
+}
+
+<div id="toast-container"></div>
+
+@if (TempData["toast.message"] is string toastMsg)
+{
+    var lvl = TempData["toast.level"] as string ?? "info";
+    <script>
+        document.addEventListener('DOMContentLoaded', () =>
+            pushToast(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(toastMsg)), @Html.Raw(System.Text.Json.JsonSerializer.Serialize(lvl))));
+    </script>
+}
+
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

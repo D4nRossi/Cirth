@@ -289,15 +289,24 @@ await jobQueue.EnqueueAsync("ProcessDocument", JsonSerializer.Serialize(payload)
 
 Acessível via `GetSystemStatusQuery` (MediatR) na tela **Administração → Conexões** (apenas para `Admin`).
 
-### Upload de documentos — página dedicada
-`/documents/upload` é uma página completa (`DocumentUpload.razor`), não um diálogo modal. O botão "Novo documento" em `/documents` usa `Href="/documents/upload"` para navegação direta — assim a URL é compartilhável/bookmarkável e funciona em hard refresh.
+### Frontend: Razor Pages + HTMX
+A V1 começou em Blazor Server e foi migrada para Razor Pages + HTMX por dois motivos: (1) o circuito SignalR do Blazor é frágil — qualquer exceção não-tratada em event handler derruba a página inteira; (2) state-in-memory dentro de componentes Razor era difícil de raciocinar e gerava bugs de re-render. Razor Pages devolve renderização server-side determinística; HTMX cobre os 10% de interatividade dinâmica (partial swaps, debounced filters, SSE de chat) sem custo de SPA.
 
-Carrega tags via `ListTagsQuery` em `OnInitializedAsync` (com try-catch para não quebrar se DB falhar). Tags são exibidas como `MudChip` togláveis. Novas tags podem ser criadas inline via `CreateTagCommand` e são auto-selecionadas. Após upload bem-sucedido, `AddTagToDocumentCommand` é disparado para cada tag selecionada e a página navega de volta para `/documents`.
+**Estrutura**:
+- `Pages/Index.cshtml` (`/`) — landing pública
+- `Pages/Documents/{Index, Upload, Detail}.cshtml` — list/form/view
+- `Pages/Chat/{Index, Stream}.cshtml` — chat layout + endpoint SSE para streaming
+- `Pages/Admin/Index.cshtml` — tabs profile/conexões via `data-tabs` + `htmx.ajax` lazy-load
+- `Pages/{Tags, Collections, Saved, Search, ApiKeys}/Index.cshtml`
+- `Pages/Error.cshtml` — error page (`UseStatusCodePagesWithReExecute("/Error/{0}")`)
 
-`TagDto` existe em dois namespaces (`CreateTag` e `ListDocuments`) — a página usa o alias `@using TagDto = Cirth.Application.Features.Tags.CreateTag.TagDto` para evitar ambiguidade.
+**Base PageModel** (`Cirth.Web.Infrastructure.CirthPageModel`): herança comum com `Toast`, `SendAsync`, `HxRedirect`, `IsHtmx`. Toast funciona dual: em HTMX vai como header `HX-Trigger: {"toast":...}` (consumido pelo `cirth.js`); em navegação normal vai por `TempData` e o `_Layout` renderiza ao carregar.
 
-### Tratamento de exceções nos componentes Blazor
-Toda invocação de `Mediator.Send()` em event handlers (cliques, debounces, submits) deve ser envolvida em `try-catch`. Exceções não-tratadas em event handlers do Blazor Server quebram o circuito SignalR, fazendo a página parecer "travada" para o usuário. O `ErrorBoundary` em `MainLayout` cobre apenas exceções na renderização — não event handlers.
+**Chat streaming via SSE**: `SendMessageCommand` retorna `IAsyncEnumerable<string>`. POST `/Chat/{id}?handler=Send` cacheia o `PendingChatStream` em `IMemoryCache` (chave = streamId), retorna HTML com user-bubble + assistant-bubble vazia configurada como `<div hx-ext="sse" sse-connect="/Chat/Stream/{streamId}" sse-swap="token" hx-swap="beforeend" sse-close="done">`. O GET `/Chat/Stream/{id}` lê do cache, roda o command, emite eventos `token` (escapados HTML) e fecha com `done`. Cliente HTMX appenda cada token na bubble.
+
+**Auth**: `FallbackPolicy = DefaultPolicy` exige login para tudo, exceto rotas marcadas com `AllowAnonymousToPage("/Index")`, `AllowAnonymousToFolder("/Account")`, e `MapHealthChecks/MapMetrics().AllowAnonymous()`.
+
+**Tratamento de exceções**: o middleware `UseExceptionHandler("/Error")` + `UseStatusCodePagesWithReExecute("/Error/{0}")` cobre exceções globais. PageModels usam `SendAsync<T>` que converte exceções em toast e retorna null. Não-tratadas chegam na página de erro estilizada Cirth.
 
 ### CirthHub (SignalR)
 `Cirth.Infrastructure.Auth.CirthHub` é o hub canônico — contém a lógica de grupos por `userId`. O Web apenas mapeia `app.MapHub<CirthHub>("/hubs/cirth")`. Não existe hub duplicado em `Cirth.Web`.

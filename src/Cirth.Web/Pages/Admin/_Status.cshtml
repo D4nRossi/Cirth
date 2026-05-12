@@ -1,0 +1,38 @@
+@model Cirth.Application.Features.Admin.GetSystemStatus.SystemStatusDto?
+
+@if (Model is null)
+{
+    <div class="alert alert-error">Não foi possível verificar o status.</div>
+}
+else
+{
+    <div class="flex items-center justify-between mb-3">
+        <h3 style="margin:0">Status dos serviços</h3>
+        <button class="btn btn-outline btn-sm"
+                hx-get="/Admin?handler=Status"
+                hx-target="[data-tab-panel='status']" hx-swap="innerHTML">
+            ↻ Verificar
+        </button>
+    </div>
+    <p class="text-caption mb-4">Verificado em @Model.CheckedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</p>
+
+    <div class="grid grid-3">
+        @foreach (var svc in Model.Services)
+        {
+            <div class="card-elev" style="border-left: 4px solid @(svc.IsHealthy ? "var(--moss-green-soft)" : "var(--rune-red-soft)")">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="status-dot @(svc.IsHealthy ? "ok" : "fail")"></span>
+                    <strong>@svc.Name</strong>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(svc.Detail))
+                {
+                    <div class="text-secondary" style="font-size:0.9rem">@svc.Detail</div>
+                }
+                @if (svc.LatencyMs > 0)
+                {
+                    <div class="text-caption mt-1">@svc.LatencyMs ms</div>
+                }
+            </div>
+        }
+    </div>
+}

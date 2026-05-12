@@ -1,0 +1,64 @@
+@page "/Chat/{id:guid?}"
+@model Cirth.Web.Pages.Chat.IndexModel
+@{
+    ViewData["Title"] = "Chat RAG — Cirth";
+}
+
+<div class="chat-layout">
+    <aside class="chat-sidebar">
+        <div class="flex items-center justify-between" style="padding:var(--space-3)">
+            <strong style="font-family:var(--font-display); color:var(--gold-primary)">Conversas</strong>
+            <form method="post" hx-post="/Chat?handler=NewConversation" hx-swap="none" style="display:inline">
+                <button type="submit" class="btn-icon" title="Nova conversa">+</button>
+            </form>
+        </div>
+        @foreach (var conv in Model.Conversations)
+        {
+            <a href="/Chat/@conv.Id" class="conv @(conv.Id == Model.Id ? "active" : "")" style="display:block; text-decoration:none; color:inherit">
+                <div>@(conv.Title ?? "Nova conversa")</div>
+                <div class="text-caption">@conv.UpdatedAt.LocalDateTime.ToString("dd/MM HH:mm")</div>
+            </a>
+        }
+    </aside>
+
+    <main class="chat-main">
+        @if (Model.Id is null || Model.Conversation is null)
+        {
+            <div class="flex items-center" style="flex:1; justify-content:center">
+                <p class="text-secondary">Selecione ou crie uma conversa</p>
+            </div>
+        }
+        else
+        {
+            <div class="chat-messages" id="chat-messages">
+                @foreach (var msg in Model.Conversation.Messages)
+                {
+                    <div class="bubble @(msg.Role.ToLowerInvariant())">
+                        @Html.Raw(Markdig.Markdown.ToHtml(msg.Content))
+                    </div>
+                }
+            </div>
+
+            <form class="chat-input" hx-ext="sse"
+                  hx-post="/Chat/@Model.Id?handler=Send"
+                  hx-target="#chat-messages" hx-swap="beforeend">
+                <textarea name="content" rows="2" data-autosize
+                          placeholder="Faça uma pergunta sobre o seu acervo... (Ctrl+Enter envia)"
+                          required></textarea>
+                <button type="submit" class="btn btn-primary">↑</button>
+            </form>
+        }
+    </main>
+</div>
+
+@section Scripts {
+<script>
+    // After sending, clear textarea + scroll to bottom + open SSE for stream
+    document.body.addEventListener('htmx:afterRequest', (e) => {
+        if (e.detail.elt?.matches('.chat-input')) {
+            const ta = e.detail.elt.querySelector('textarea');
+            if (e.detail.successful && ta) ta.value = '';
+        }
+    });
+</script>
+}

@@ -1,13 +1,12 @@
 using Cirth.Application;
 using Cirth.Infrastructure;
 using Cirth.Infrastructure.Auth;
-using Cirth.Web.Components;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Identity.Web;
-using MudBlazor.Services;
+using Microsoft.Identity.Web.UI;
 using Prometheus;
 using Serilog;
 
@@ -26,7 +25,7 @@ try
            .Enrich.WithProperty("Application", "Cirth.Web"));
 
     // Data Protection com chaves persistidas em disco — sem isso cada restart do processo
-    // (inclusive hot reload) gera novas chaves e invalida os cookies de correlação OIDC em voo.
+    // invalida cookies de correlação OIDC em voo.
     builder.Services.AddDataProtection()
         .PersistKeysToFileSystem(new DirectoryInfo(
             Path.Combine(builder.Environment.ContentRootPath, ".data-protection-keys")));
@@ -36,11 +35,8 @@ try
         .AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
         .AddMicrosoftIdentityWebApp(builder.Configuration.GetSection("EntraId"));
 
-    // PostConfigure roda DEPOIS dos IPostConfigureOptions do Microsoft.Identity.Web.
-    // ResponseType=code: authorization code flow (PKCE) — não requer implicit grant no Azure.
-    // O padrão do AddMicrosoftIdentityWebApp é id_token (implicit) que causa AADSTS700054.
-    // SameSite=None: Azure faz POST de volta para /signin-oidc (cross-site) — Lax bloquearia
-    // os cookies de correlação nesse POST.
+    // ResponseType=code: authorization code flow (PKCE).
+    // SameSite=None: Azure faz POST cross-site para /signin-oidc; Lax bloqueia cookies.
     builder.Services.PostConfigure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
     {
         options.ResponseType = "code";
@@ -59,16 +55,19 @@ try
 
     builder.Services.AddHttpContextAccessor();
 
-    // Blazor + MudBlazor
-    builder.Services.AddRazorComponents().AddInteractiveServerComponents();
-    builder.Services.AddMudServices(cfg =>
-    {
-        cfg.SnackbarConfiguration.PositionClass = "bottom-right";
-        cfg.SnackbarConfiguration.PreventDuplicates = false;
-        cfg.SnackbarConfiguration.NewestOnTop = true;
-    });
+    // Razor Pages + Microsoft.Identity.Web UI (provides /MicrosoftIdentity/Account/SignOut etc.)
+    builder.Services
+        .AddRazorPages(options =>
+        {
+            options.Conventions.AllowAnonymousToPage("/Index");
+            options.Conventions.AllowAnonymousToFolder("/Account");
+        })
+        .AddMicrosoftIdentityUI();
 
-    // SignalR
+    builder.Services.AddAntiforgery();
+    builder.Services.AddMemoryCache();
+
+    // SignalR — usado por INotificationHub (notificações de indexação) e CirthHub.
     builder.Services.AddSignalR();
     builder.Services.AddSignalRNotifications();
 
@@ -103,6 +102,11 @@ try
 
     if (!app.Environment.IsDevelopment())
         app.UseHsts();
+    else
+        app.UseDeveloperExceptionPage();
+
+    app.UseStatusCodePagesWithReExecute("/Error/{0}");
+    app.UseExceptionHandler("/Error");
 
     app.UseHttpsRedirection();
     app.UseStaticFiles();
@@ -113,21 +117,20 @@ try
     app.UseMiddleware<UserProvisioningMiddleware>();
 
     app.UseAuthorization();
-
     app.UseRateLimiter();
     app.UseAntiforgery();
 
     // Metrics
     app.UseHttpMetrics();
-    app.MapMetrics("/metrics");
+    app.MapMetrics("/metrics").AllowAnonymous();
 
-    app.MapHealthChecks("/health");
-    app.MapHealthChecks("/health/ready", new() { Predicate = h => h.Tags.Contains("ready") });
+    app.MapHealthChecks("/health").AllowAnonymous();
+    app.MapHealthChecks("/health/ready", new() { Predicate = h => h.Tags.Contains("ready") }).AllowAnonymous();
 
-    app.MapHub<Cirth.Infrastructure.Auth.CirthHub>("/hubs/cirth");
-    app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
+    app.MapHub<CirthHub>("/hubs/cirth");
+    app.MapRazorPages();
 
-    // Sign-out endpoint
+    // Sign-out endpoint (compatível com link no menu)
     app.MapGet("/signout", async ctx =>
     {
         await ctx.SignOutAsync();

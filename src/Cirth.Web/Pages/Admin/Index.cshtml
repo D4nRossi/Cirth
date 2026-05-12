@@ -1,0 +1,78 @@
+@page "/Admin"
+@model Cirth.Web.Pages.Admin.IndexModel
+@{
+    ViewData["Title"] = "Administração — Cirth";
+}
+
+<h1 class="mb-6">Administração</h1>
+
+<div class="tabs" data-tabs>
+    <button class="tab active" data-tab="profile" type="button">Perfil</button>
+    <button class="tab" data-tab="status" type="button"
+            data-hx-get="/Admin?handler=Status">Conexões</button>
+</div>
+
+<div data-tab-panel="profile">
+    @if (Model.Profile is null)
+    {
+        <div class="alert alert-error">Não foi possível carregar o perfil.</div>
+    }
+    else
+    {
+        var p = Model.Profile;
+        <div class="grid" style="grid-template-columns: 1fr 2fr; gap: var(--space-4);">
+            <div class="card-elev">
+                <div class="flex items-center gap-3 mb-3">
+                    <div style="width:48px; height:48px; border-radius:50%; background:var(--gold-primary); color:var(--text-on-gold); display:flex; align-items:center; justify-content:center; font-family:var(--font-display); font-size:1.3rem">
+                        @p.DisplayName[0]
+                    </div>
+                    <div>
+                        <strong>@p.DisplayName</strong>
+                        <div class="text-caption">@p.Email</div>
+                    </div>
+                </div>
+                <hr class="divider" />
+                <div class="flex justify-between mb-2">
+                    <span class="text-secondary">Papel</span>
+                    <span class="chip @(p.Role == "Admin" ? "chip-warning" : "")">@p.Role</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-secondary">Membro desde</span>
+                    <span>@p.MemberSince.ToString("dd/MM/yyyy")</span>
+                </div>
+            </div>
+
+            <div class="grid grid-4">
+                <div class="card text-center">
+                    <div style="font-size:2rem; color:var(--gold-primary)">@p.DocumentCount</div>
+                    <div class="text-caption">Documentos</div>
+                </div>
+                <div class="card text-center">
+                    <div style="font-size:2rem; color:var(--gold-primary)">@p.CollectionCount</div>
+                    <div class="text-caption">Coleções</div>
+                </div>
+                <div class="card text-center">
+                    <div style="font-size:2rem; color:var(--gold-primary)">@p.TagCount</div>
+                    <div class="text-caption">Tags</div>
+                </div>
+                <div class="card text-center">
+                    <div style="font-size:2rem; color:var(--gold-primary)">@p.ConversationCount</div>
+                    <div class="text-caption">Conversas</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card-elev mt-4">
+            <h3>Quotas (hoje)</h3>
+            <div class="grid grid-3">
+                <partial name="_Quota" model="@(("Tokens", p.TokensUsedToday, p.DailyTokenLimit, ""))" />
+                <partial name="_Quota" model="@(("Uploads", p.UploadsToday, p.DailyUploadLimit, ""))" />
+                <partial name="_Quota" model="@(("Armazenamento", (int)(p.StorageUsedBytes / 1024 / 1024), (int)(p.StorageLimitBytes / 1024 / 1024), "MB"))" />
+            </div>
+        </div>
+    }
+</div>
+
+<div data-tab-panel="status" hidden>
+    <div class="text-secondary">Selecione "Conexões" para carregar.</div>
+</div>

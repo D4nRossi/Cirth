@@ -1,0 +1,56 @@
+@page "/Search"
+@model SearchModel
+@{
+    ViewData["Title"] = "Busca — Cirth";
+}
+
+<h1 class="mb-4">Busca híbrida</h1>
+
+<form method="get" class="mb-6">
+    <div class="flex gap-2">
+        <input type="search" name="q" value="@Model.Query" placeholder="Pesquisar..."
+               class="input grow" autocomplete="off" autofocus />
+        <button type="submit" class="btn btn-primary">Buscar</button>
+    </div>
+</form>
+
+@if (Model.Result is not null)
+{
+    <p class="text-caption mb-4">
+        @Model.Result.Hits.Count resultado(s) em @Model.Result.Elapsed.TotalMilliseconds.ToString("F0")ms
+    </p>
+
+    @if (Model.Result.Hits.Count == 0)
+    {
+        <div class="alert alert-info">Nenhum resultado encontrado para "@Model.Result.Query".</div>
+    }
+    else
+    {
+        @foreach (var hit in Model.Result.Hits)
+        {
+            <a href="/Documents/@hit.DocumentId" class="card mb-3" style="display:block; text-decoration:none; color:inherit">
+                <div class="flex items-center justify-between mb-2">
+                    <strong style="color:var(--gold-primary)">@hit.DocumentTitle</strong>
+                    <span class="text-caption">Score: @hit.Score.ToString("F3")</span>
+                </div>
+                @if (!string.IsNullOrEmpty(hit.Highlight))
+                {
+                    <p>@Html.Raw(hit.Highlight)</p>
+                }
+                else
+                {
+                    <p class="text-secondary">@(hit.Content.Length > 200 ? hit.Content[..200] + "..." : hit.Content)</p>
+                }
+                @if (hit.Tags.Count > 0)
+                {
+                    <div class="flex gap-1 flex-wrap mt-2">
+                        @foreach (var t in hit.Tags.Take(4))
+                        {
+                            <span class="chip">@t</span>
+                        }
+                    </div>
+                }
+            </a>
+        }
+    }
+}

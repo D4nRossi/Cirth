@@ -1,0 +1,29 @@
+@page "/Collections"
+@model Cirth.Web.Pages.Collections.IndexModel
+@{
+    ViewData["Title"] = "Coleções — Cirth";
+}
+
+<h1 class="mb-4">Coleções</h1>
+
+<div class="card mb-4">
+    <h3>Nova coleção</h3>
+    <form method="post" hx-post="/Collections?handler=Create"
+          hx-target="#collection-list" hx-swap="outerHTML"
+          hx-on::after-request="if(event.detail.successful) this.reset()">
+        <div class="grid grid-2">
+            <div class="form-field" style="margin-bottom:0">
+                <label asp-for="NewCollection.Name">Nome</label>
+                <input asp-for="NewCollection.Name" class="input" maxlength="200" required />
+                <span asp-validation-for="NewCollection.Name" class="field-error"></span>
+            </div>
+            <div class="form-field" style="margin-bottom:0">
+                <label asp-for="NewCollection.Description">Descrição (opcional)</label>
+                <input asp-for="NewCollection.Description" class="input" maxlength="500" />
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary mt-3">Criar</button>
+    </form>
+</div>
+
+<partial name="_CollectionList" model="Model.Collections" />

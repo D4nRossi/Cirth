@@ -1,0 +1,84 @@
+@page "/Documents/Upload"
+@model Cirth.Web.Pages.Documents.UploadModel
+@{
+    ViewData["Title"] = "Novo documento — Cirth";
+}
+
+<div class="flex items-center gap-3 mb-4">
+    <a href="/Documents" class="btn-icon" title="Voltar">←</a>
+    <h1 style="margin:0">Novo documento</h1>
+</div>
+
+<form method="post" enctype="multipart/form-data" class="card-elev" style="max-width:760px">
+    <div asp-validation-summary="ModelOnly" class="alert alert-error" hidden></div>
+
+    <div class="form-field">
+        <label asp-for="Input.Title">Título</label>
+        <input asp-for="Input.Title" class="input" required maxlength="500" />
+        <span asp-validation-for="Input.Title" class="field-error"></span>
+    </div>
+
+    <div class="form-field">
+        <label>Origem</label>
+        <div class="flex gap-2">
+            <label class="chip chip-toggle" onclick="document.getElementById('mode-file').checked=true; toggleMode('file')">
+                <input type="radio" asp-for="Input.Mode" id="mode-file" value="file" hidden />Arquivo
+            </label>
+            <label class="chip chip-toggle" onclick="document.getElementById('mode-url').checked=true; toggleMode('url')">
+                <input type="radio" asp-for="Input.Mode" id="mode-url" value="url" hidden />URL
+            </label>
+        </div>
+    </div>
+
+    <div id="mode-panel-file" class="form-field">
+        <label for="Input_File">Arquivo</label>
+        <input type="file" asp-for="Input.File" class="input"
+               accept=".pdf,.docx,.md,.txt,.html" />
+        <span class="text-caption">PDF, DOCX, Markdown, HTML ou TXT. Máx 50 MB.</span>
+    </div>
+
+    <div id="mode-panel-url" class="form-field" hidden>
+        <label asp-for="Input.Url">URL</label>
+        <input asp-for="Input.Url" type="url" class="input" placeholder="https://..." />
+        <span asp-validation-for="Input.Url" class="field-error"></span>
+    </div>
+
+    <div class="form-field">
+        <label asp-for="Input.Author">Autor (opcional)</label>
+        <input asp-for="Input.Author" class="input" />
+    </div>
+
+    <hr class="divider" />
+
+    <h3>Tags</h3>
+    <div id="tag-picker">
+        <partial name="_TagPicker" model="Model.TagPickerVm" />
+    </div>
+
+    <hr class="divider" />
+
+    <div class="flex justify-end gap-2">
+        <a href="/Documents" class="btn btn-text">Cancelar</a>
+        <button type="submit" class="btn btn-primary">
+            <span class="htmx-indicator spinner"></span>
+            Enviar
+        </button>
+    </div>
+</form>
+
+@section Scripts {
+<script>
+    function toggleMode(mode) {
+        document.getElementById('mode-panel-file').hidden = mode !== 'file';
+        document.getElementById('mode-panel-url').hidden = mode !== 'url';
+        document.querySelectorAll('.chip-toggle').forEach(el => {
+            el.classList.toggle('chip-selected', el.querySelector('input').value === mode);
+        });
+    }
+    // Init from current value
+    document.addEventListener('DOMContentLoaded', () => {
+        const checked = document.querySelector('input[name="Input.Mode"]:checked');
+        toggleMode(checked?.value ?? 'file');
+    });
+</script>
+}

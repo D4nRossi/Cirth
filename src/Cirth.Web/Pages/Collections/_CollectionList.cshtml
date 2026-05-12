@@ -1,0 +1,24 @@
+@model IReadOnlyList<Cirth.Application.Features.Collections.ListCollections.CollectionSummaryDto>
+
+<div id="collection-list">
+    @if (Model.Count == 0)
+    {
+        <div class="alert alert-info">Nenhuma coleção criada ainda. Organize seus documentos criando uma coleção.</div>
+    }
+    else
+    {
+        <div class="grid grid-3">
+            @foreach (var col in Model)
+            {
+                <div class="card">
+                    <h4>@col.Name</h4>
+                    @if (!string.IsNullOrWhiteSpace(col.Description))
+                    {
+                        <p class="text-secondary">@col.Description</p>
+                    }
+                    <p class="text-caption">@col.DocumentCount documento(s) · criada @col.CreatedAt.LocalDateTime.ToString("dd/MM/yy")</p>
+                </div>
+            }
+        </div>
+    }
+</div>

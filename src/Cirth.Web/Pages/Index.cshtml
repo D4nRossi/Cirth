@@ -1,0 +1,31 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Cirth — Arquivos";
+}
+
+<h1 class="mb-6">Os arquivos repousam.</h1>
+
+<p class="mb-8" style="max-width:720px; color:var(--text-secondary);">
+    Bem-vindo ao Cirth. Aqui você inscreve seu conhecimento e o consulta como um sábio
+    consulta um manuscrito antigo. Comece enviando um documento ou abrindo o chat.
+</p>
+
+<div class="grid grid-2">
+    <div class="card">
+        <h3>Inscrever um documento</h3>
+        <p class="text-secondary">PDF, Markdown, DOCX, HTML ou um link da web. O Cirth lê, divide, vetoriza e arquiva.</p>
+        <a href="/Documents/Upload" class="btn btn-primary mt-3">Enviar</a>
+    </div>
+    <div class="card">
+        <h3>Consultar como Gandalf</h3>
+        <p class="text-secondary">Pergunte em linguagem natural. As respostas vêm com citações para os manuscritos originais.</p>
+        <a href="/Chat" class="btn btn-outline mt-3">Abrir chat</a>
+    </div>
+</div>
+
+<div class="cirth-divider">
+    <span class="line"></span>
+    <span class="rune">⌖</span>
+    <span class="line"></span>
+</div>

@@ -1,0 +1,95 @@
+@page "/Documents/{id:guid}"
+@model Cirth.Web.Pages.Documents.DetailModel
+@{
+    ViewData["Title"] = (Model.Doc?.Title ?? "Documento") + " — Cirth";
+}
+
+<div class="flex items-center gap-3 mb-4">
+    <a href="/Documents" class="btn-icon" title="Voltar">←</a>
+    <h1 style="margin:0">@(Model.Doc?.Title ?? "Carregando...")</h1>
+</div>
+
+@if (Model.Doc is null)
+{
+    <div class="alert alert-error">@(Model.Error ?? "Documento não encontrado.")</div>
+}
+else
+{
+    var doc = Model.Doc;
+    <div class="grid" style="grid-template-columns: 2fr 1fr; gap: var(--space-4);">
+        <div class="card-elev">
+            <div class="flex gap-2 mb-3">
+                <span class="chip">@doc.SourceType</span>
+                @{
+                    var statusCls = doc.Status switch
+                    {
+                        "Indexed" => "chip-success",
+                        "Processing" or "Pending" => "chip-warning",
+                        "Failed" => "chip-error",
+                        _ => ""
+                    };
+                }
+                <span class="chip @statusCls">@doc.Status</span>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(doc.Author))
+            {
+                <p><strong>Autor:</strong> @doc.Author</p>
+            }
+            <p><strong>Criado em:</strong> @doc.CreatedAt.LocalDateTime.ToString("dd/MM/yyyy HH:mm")</p>
+            <p><strong>Atualizado em:</strong> @doc.UpdatedAt.LocalDateTime.ToString("dd/MM/yyyy HH:mm")</p>
+
+            @if (doc.Tags.Count > 0)
+            {
+                <hr class="divider" />
+                <h4>Tags</h4>
+                <div class="flex flex-wrap gap-2">
+                    @foreach (var t in doc.Tags)
+                    {
+                        var style = t.Color is null ? "" : $"background-color:{t.Color};color:#fff;border-color:{t.Color}";
+                        <span class="chip" style="@style">@t.Name</span>
+                    }
+                </div>
+            }
+
+            @if (doc.Collections.Count > 0)
+            {
+                <hr class="divider" />
+                <h4>Coleções</h4>
+                <div class="flex flex-wrap gap-2">
+                    @foreach (var c in doc.Collections)
+                    {
+                        <span class="chip">📁 @c.Name</span>
+                    }
+                </div>
+            }
+        </div>
+
+        <div class="card-elev">
+            <h4>Versões</h4>
+            @foreach (var v in doc.Versions)
+            {
+                <div class="flex items-center justify-between mb-2">
+                    <div>
+                        <div>v@(v.VersionNumber) @(v.IsCurrent ? "(atual)" : "")</div>
+                        <div class="text-caption">@FormatSize(v.SizeBytes) · @v.CreatedAt.LocalDateTime.ToString("dd/MM/yy HH:mm")</div>
+                    </div>
+                    @if (v.IsCurrent)
+                    {
+                        <span class="status-dot ok"></span>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@functions {
+    static string FormatSize(long bytes) => bytes switch
+    {
+        >= 1L * 1024 * 1024 * 1024 => $"{bytes / (1024.0 * 1024 * 1024):F1} GB",
+        >= 1L * 1024 * 1024 => $"{bytes / (1024.0 * 1024):F1} MB",
+        >= 1024L => $"{bytes / 1024.0:F1} KB",
+        _ => $"{bytes} B"
+    };
+}
