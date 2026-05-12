@@ -155,7 +155,7 @@ public sealed class JobPollingService(
         // Enqueue tag suggestion job
         var jobQueue = sp.GetRequiredService<IJobQueue>();
         await jobQueue.EnqueueAsync("SuggestTags",
-            JsonSerializer.Serialize(new { payload.DocumentId, payload.TenantId, payload.UserId }), ct);
+            new { payload.DocumentId, payload.TenantId, payload.UserId }, ct);
         await uow.CommitAsync(ct);
     }
 

@@ -80,11 +80,11 @@ internal sealed class UploadDocumentCommandHandler(
         var version = document.AddVersion(contentHash, storageKey, cmd.SizeBytes, cmd.MimeType);
         await documentRepository.AddAsync(document, ct);
 
-        var payload = JsonSerializer.Serialize(new ProcessDocumentPayload(
+        // Pass the object directly — PostgresJobQueue serializes internally.
+        // Pre-serializing a string and passing it would double-serialize (string inside string).
+        await jobQueue.EnqueueAsync("ProcessDocument", new ProcessDocumentPayload(
             document.Id.Value, version.Id.Value, tenantId.Value, userId.Value,
-            storageKey, cmd.MimeType, cmd.IsUrl, cmd.Url));
-
-        await jobQueue.EnqueueAsync("ProcessDocument", payload, ct);
+            storageKey, cmd.MimeType, cmd.IsUrl, cmd.Url), ct);
         await uow.CommitAsync(ct);
 
         return Result<UploadDocumentResult>.Success(new(document.Id.Value, version.Id.Value));

@@ -1,4 +1,5 @@
 using Azure.AI.OpenAI;
+using Cirth.Infrastructure.Health;
 using Cirth.Application.Common.Ports;
 using Cirth.Infrastructure.Ai.Adapters;
 using Cirth.Infrastructure.Auth;
@@ -121,6 +122,9 @@ public static class DependencyInjection
 
         // Notification hub — null by default; Web overrides with SignalRNotificationHub via AddSignalRNotifications().
         services.AddScoped<INotificationHub, NullNotificationHub>();
+
+        // System health checks (admin dashboard).
+        services.AddScoped<ISystemHealthService, SystemHealthService>();
 
         // HTTP client for web link parsing
         services.AddHttpClient("web-fetch", client =>

@@ -1,16 +1,20 @@
 @inject IMediator Mediator
 @inject ISnackbar Snackbar
+@using TagDto = Cirth.Application.Features.Tags.CreateTag.TagDto
 
-<MudDialog>
+<MudDialog Style="min-width:560px">
     <TitleContent>
         <MudText Typo="Typo.h6">Novo documento</MudText>
     </TitleContent>
     <DialogContent>
         <MudForm @ref="_form" @bind-IsValid="_isValid">
-            <MudTextField @bind-Value="_title" Label="Título" Required="true"
-                          RequiredError="Título é obrigatório" Class="mb-3" />
 
-            <MudToggleGroup T="string" @bind-Value="_mode" SelectionMode="SelectionMode.SingleSelection">
+            <MudTextField @bind-Value="_title" Label="Título" Required="true"
+                          RequiredError="Título é obrigatório" Variant="Variant.Outlined"
+                          Class="mb-3" />
+
+            <MudToggleGroup T="string" @bind-Value="_mode" SelectionMode="SelectionMode.SingleSelection"
+                            Class="mb-3">
                 <MudToggleItem Value="@("file")">Arquivo</MudToggleItem>
                 <MudToggleItem Value="@("url")">URL</MudToggleItem>
             </MudToggleGroup>
@@ -18,7 +22,7 @@
             @if (_mode == "file")
             {
                 <MudFileUpload T="IBrowserFile" @bind-Files="_file" Accept=".pdf,.docx,.md,.txt,.html"
-                               Class="mt-3">
+                               Class="mb-3">
                     <ActivatorContent>
                         <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.AttachFile">
                             Selecionar arquivo
@@ -27,25 +31,73 @@
                     <SelectedTemplate>
                         @if (context is not null)
                         {
-                            <MudText Class="mt-1">@context.Name (@FormatSize(context.Size))</MudText>
+                            <MudText Typo="Typo.body2" Class="mt-1 ml-1">
+                                @context.Name (@FormatSize(context.Size))
+                            </MudText>
                         }
                     </SelectedTemplate>
                 </MudFileUpload>
             }
             else
             {
-                <MudTextField @bind-Value="_url" Label="URL" Placeholder="https://..." Class="mt-3"
+                <MudTextField @bind-Value="_url" Label="URL" Placeholder="https://..." Class="mb-3"
+                              Variant="Variant.Outlined"
                               Validation="@((Func<string, string?>)ValidateUrl)" />
             }
 
-            <MudTextField @bind-Value="_author" Label="Autor (opcional)" Class="mt-3" />
+            <MudTextField @bind-Value="_author" Label="Autor (opcional)" Variant="Variant.Outlined"
+                          Class="mb-4" />
+
+            <MudDivider Class="mb-3" />
+
+            {{!-- Tag management --}}
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Tags</MudText>
+
+            @if (_loadingTags)
+            {
+                <MudProgressLinear Indeterminate="true" Class="mb-2" />
+            }
+            else if (_tags.Count > 0)
+            {
+                <div class="d-flex flex-wrap gap-1 mb-3">
+                    @foreach (var tag in _tags)
+                    {
+                        var selected = _selectedTagIds.Contains(tag.Id);
+                        <MudChip T="string"
+                                 Size="Size.Small"
+                                 Variant="@(selected ? Variant.Filled : Variant.Outlined)"
+                                 Style="@GetTagStyle(tag, selected)"
+                                 OnClick="@(() => ToggleTag(tag.Id))"
+                                 icon="@(selected ? Icons.Material.Filled.Check : "")">
+                            @tag.Name
+                        </MudChip>
+                    }
+                </div>
+            }
+
+            <div class="d-flex align-center gap-2">
+                <MudTextField @bind-Value="_newTagName" Label="Nova tag" Variant="Variant.Outlined"
+                              Margin="Margin.Dense" MaxLength="100" Style="flex:1" />
+                <MudTextField @bind-Value="_newTagColor" Label="Cor" Variant="Variant.Outlined"
+                              Margin="Margin.Dense" MaxLength="7" Placeholder="#RRGGBB"
+                              Style="width:100px" />
+                <MudIconButton Icon="@Icons.Material.Filled.AddCircle"
+                               Color="Color.Primary" Size="Size.Medium"
+                               Disabled="@(string.IsNullOrWhiteSpace(_newTagName) || _creatingTag)"
+                               OnClick="CreateNewTag"
+                               title="Criar tag" />
+            </div>
+
         </MudForm>
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="@Cancel">Cancelar</MudButton>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@Upload"
                    Disabled="@(_uploading || !_isValid)">
-            @if (_uploading) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+            @if (_uploading)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
             Enviar
         </MudButton>
     </DialogActions>
@@ -62,6 +114,63 @@
     private string _url = string.Empty;
     private string _author = string.Empty;
     private IBrowserFile? _file;
+
+    // Tags
+    private bool _loadingTags = true;
+    private bool _creatingTag;
+    private List<TagDto> _tags = [];
+    private HashSet<Guid> _selectedTagIds = [];
+    private string _newTagName = string.Empty;
+    private string _newTagColor = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await Mediator.Send(new ListTagsQuery());
+        if (result.IsSuccess)
+            _tags = result.Value!.ToList();
+        _loadingTags = false;
+    }
+
+    private void ToggleTag(Guid id)
+    {
+        if (!_selectedTagIds.Remove(id))
+            _selectedTagIds.Add(id);
+    }
+
+    private async Task CreateNewTag()
+    {
+        if (string.IsNullOrWhiteSpace(_newTagName)) return;
+        _creatingTag = true;
+        var color = IsValidHex(_newTagColor) ? _newTagColor : null;
+        var result = await Mediator.Send(new CreateTagCommand(_newTagName.Trim(), color));
+        _creatingTag = false;
+        if (result.IsSuccess)
+        {
+            var dto = result.Value!;
+            _tags.Add(dto);
+            _tags = [.. _tags.OrderBy(t => t.Name)];
+            _selectedTagIds.Add(dto.Id);
+            _newTagName = string.Empty;
+            _newTagColor = string.Empty;
+            Snackbar.Add($"Tag \"{dto.Name}\" criada.", Severity.Success);
+        }
+        else
+        {
+            Snackbar.Add(result.Error!.Message, Severity.Warning);
+        }
+    }
+
+    private static string GetTagStyle(TagDto tag, bool selected)
+    {
+        if (tag.Color is null) return string.Empty;
+        return selected
+            ? $"background-color:{tag.Color};color:#fff;border-color:{tag.Color}"
+            : $"color:{tag.Color};border-color:{tag.Color}";
+    }
+
+    private static bool IsValidHex(string? color) =>
+        !string.IsNullOrWhiteSpace(color) &&
+        System.Text.RegularExpressions.Regex.IsMatch(color, "^#[0-9A-Fa-f]{6}$");
 
     private string? ValidateUrl(string url) =>
         Uri.IsWellFormedUriString(url, UriKind.Absolute) ? null : "URL inválida";
@@ -81,26 +190,36 @@
             if (_mode == "url")
             {
                 result = await Mediator.Send(new UploadDocumentCommand(
-                    _title, "url.txt", Stream.Null, "text/uri-list", 0, _author.NullIfEmpty(), true, _url));
+                    _title, "url.txt", Stream.Null, "text/plain", 0,
+                    _author.NullIfEmpty(), true, _url));
             }
             else
             {
-                if (_file is null) { Snackbar.Add("Selecione um arquivo", Severity.Warning); return; }
+                if (_file is null)
+                {
+                    Snackbar.Add("Selecione um arquivo.", Severity.Warning);
+                    return;
+                }
                 const long MaxSize = 50 * 1024 * 1024;
                 await using var stream = _file.OpenReadStream(MaxSize);
                 result = await Mediator.Send(new UploadDocumentCommand(
-                    _title, _file.Name, stream, _file.ContentType, _file.Size, _author.NullIfEmpty(), false, null));
+                    _title, _file.Name, stream, _file.ContentType, _file.Size,
+                    _author.NullIfEmpty(), false, null));
             }
 
-            if (result.IsSuccess)
-            {
-                Snackbar.Add("Documento enviado e em processamento!", Severity.Success);
-                MudDialog.Close(DialogResult.Ok(true));
-            }
-            else
+            if (!result.IsSuccess)
             {
                 Snackbar.Add(result.Error!.Message, Severity.Error);
+                return;
             }
+
+            // Apply selected tags
+            var docId = result.Value!.DocumentId;
+            foreach (var tagId in _selectedTagIds)
+                await Mediator.Send(new AddTagToDocumentCommand(docId, tagId));
+
+            Snackbar.Add("Documento enviado e em processamento!", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
         }
         finally
         {

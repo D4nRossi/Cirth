@@ -15,7 +15,7 @@ internal sealed class MinioObjectStorage(IMinioClient minio, ILogger<MinioObject
             .WithBucket(bucket)
             .WithObject(key)
             .WithStreamData(content)
-            .WithObjectSize(content.Length == 0 ? -1 : content.Length)
+            .WithObjectSize(content.CanSeek ? content.Length : -1)
             .WithContentType(contentType);
 
         await minio.PutObjectAsync(args, ct);

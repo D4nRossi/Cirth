@@ -271,6 +271,29 @@ Consulte `docs/adr/` para o histórico completo. Resumo:
 ### Upload de arquivos (Blazor Server)
 `IBrowserFile.OpenReadStream()` retorna um stream não-seekable. O `UploadDocumentCommandHandler` copia o conteúdo para um `MemoryStream` antes de calcular o hash SHA-256 e enviar ao MinIO. Limite de 50 MB por upload.
 
+`MinioObjectStorage` usa `content.CanSeek ? content.Length : -1` em `.WithObjectSize()` — passar `-1` instrui o SDK a usar transferência em chunks, evitando `NotSupportedException` com streams não-seekable.
+
+### IJobQueue: serialização do payload
+`IJobQueue.EnqueueAsync(string type, object payload)` serializa o payload internamente via `JsonSerializer.Serialize`. Nunca pré-serialize o objeto antes de passar — isso resulta em dupla serialização (string JSON dentro de string JSON) que quebra a deserialização no Worker. Sempre passe o objeto diretamente:
+
+```csharp
+// CORRETO
+await jobQueue.EnqueueAsync("ProcessDocument", new ProcessDocumentPayload(...), ct);
+
+// ERRADO — causa string-in-string no banco
+await jobQueue.EnqueueAsync("ProcessDocument", JsonSerializer.Serialize(payload), ct);
+```
+
+### ISystemHealthService (observabilidade de infraestrutura)
+`ISystemHealthService` é uma porta definida em `Cirth.Application.Common.Ports` e implementada por `SystemHealthService` em `Cirth.Infrastructure.Health`. Verifica PostgreSQL, Redis, Qdrant, MinIO e Azure AI Foundry, retornando `ServiceHealthStatus` (nome, saúde, detalhe, latência em ms) para cada serviço.
+
+Acessível via `GetSystemStatusQuery` (MediatR) na tela **Administração → Conexões** (apenas para `Admin`).
+
+### Tags no diálogo de upload
+`UploadDocumentDialog` carrega as tags existentes via `ListTagsQuery` em `OnInitializedAsync`. Tags são exibidas como `MudChip` togláveis. Novas tags podem ser criadas inline via `CreateTagCommand` e são auto-selecionadas. Após upload bem-sucedido, `AddTagToDocumentCommand` é disparado para cada tag selecionada.
+
+`TagDto` existe em dois namespaces (`CreateTag` e `ListDocuments`) — o dialog usa o alias `@using TagDto = Cirth.Application.Features.Tags.CreateTag.TagDto` para evitar ambiguidade.
+
 ### CirthHub (SignalR)
 `Cirth.Infrastructure.Auth.CirthHub` é o hub canônico — contém a lógica de grupos por `userId`. O Web apenas mapeia `app.MapHub<CirthHub>("/hubs/cirth")`. Não existe hub duplicado em `Cirth.Web`.
 
