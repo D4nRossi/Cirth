@@ -36,11 +36,14 @@ try
         .AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
         .AddMicrosoftIdentityWebApp(builder.Configuration.GetSection("EntraId"));
 
-    // PostConfigure (não Configure) para rodar DEPOIS dos IPostConfigureOptions do Microsoft.Identity.Web.
-    // Azure faz POST de volta para /signin-oidc (cross-site) — SameSite=Lax bloqueia os cookies
-    // de correlação/nonce. SameSite=None + Secure permite o fluxo.
+    // PostConfigure roda DEPOIS dos IPostConfigureOptions do Microsoft.Identity.Web.
+    // ResponseType=code: authorization code flow (PKCE) — não requer implicit grant no Azure.
+    // O padrão do AddMicrosoftIdentityWebApp é id_token (implicit) que causa AADSTS700054.
+    // SameSite=None: Azure faz POST de volta para /signin-oidc (cross-site) — Lax bloquearia
+    // os cookies de correlação nesse POST.
     builder.Services.PostConfigure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
     {
+        options.ResponseType = "code";
         options.CorrelationCookie.SameSite = SameSiteMode.None;
         options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.Always;
         options.NonceCookie.SameSite = SameSiteMode.None;
