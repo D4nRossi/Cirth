@@ -52,20 +52,22 @@ internal sealed class SystemHealthService(
     {
         var ok = await db.Database.CanConnectAsync();
         if (!ok) throw new InvalidOperationException("Cannot connect to Postgres.");
+        // EF Core's SqlQueryRaw<string> wraps the query and expects a column named "Value".
+        // PostgreSQL is case-sensitive with double-quoted identifiers, so we alias explicitly.
         var version = await db.Database
-            .SqlQueryRaw<string>("SELECT version()")
+            .SqlQueryRaw<string>("SELECT version() AS \"Value\"")
             .FirstAsync();
         return version.Split(',')[0].Replace("PostgreSQL ", "v");
     }
 
     private async Task<string?> CheckRedisAsync()
     {
+        // INFO is an admin command in StackExchange.Redis; using it requires
+        // allowAdmin=true in the connection string, which broadens permissions
+        // beyond what app code needs. PING alone confirms the server responds.
         var redisDb = redis.GetDatabase();
         var latency = await redisDb.PingAsync();
-        var info = await redis.GetServer(redis.GetEndPoints()[0]).InfoAsync("server");
-        var serverGroup = info.FirstOrDefault(g => g.Key == "server");
-        var version = serverGroup?.FirstOrDefault(kv => kv.Key == "redis_version").Value ?? "?";
-        return $"v{version} ({latency.TotalMilliseconds:F0}ms round-trip)";
+        return $"ping {latency.TotalMilliseconds:F0}ms";
     }
 
     private async Task<string?> CheckQdrantAsync()

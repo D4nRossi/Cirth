@@ -289,6 +289,13 @@ await jobQueue.EnqueueAsync("ProcessDocument", JsonSerializer.Serialize(payload)
 
 Acessível via `GetSystemStatusQuery` (MediatR) na tela **Administração → Conexões** (apenas para `Admin`).
 
+### Health checks — armadilhas conhecidas
+`SystemHealthService` (em `Cirth.Infrastructure/Health/`) chama infraestrutura real. Duas pegadinhas que já mordemos:
+
+1. **EF `SqlQueryRaw<string>` exige coluna `Value`**: `db.Database.SqlQueryRaw<string>("SELECT version()")` falha com `42703 column s.Value does not exist` porque o provider envelopa a query num `SELECT s."Value" FROM (...) AS s`. Sempre aliase: `SELECT version() AS "Value"`.
+
+2. **`InfoAsync` no StackExchange.Redis é admin-only**: chamar `redis.GetServer(...).InfoAsync()` exige `allowAdmin=true` na connection string, o que aumenta a superfície de permissões além do necessário para o app. Use só `PingAsync` — confirma que o servidor responde sem precisar de admin. A versão fica oculta.
+
 ### Frontend: Razor Pages + HTMX
 A V1 começou em Blazor Server e foi migrada para Razor Pages + HTMX por dois motivos: (1) o circuito SignalR do Blazor é frágil — qualquer exceção não-tratada em event handler derruba a página inteira; (2) state-in-memory dentro de componentes Razor era difícil de raciocinar e gerava bugs de re-render. Razor Pages devolve renderização server-side determinística; HTMX cobre os 10% de interatividade dinâmica (partial swaps, debounced filters, SSE de chat) sem custo de SPA.
 

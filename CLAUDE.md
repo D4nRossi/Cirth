@@ -89,6 +89,7 @@ tests/
   - Debounced filtro: `hx-trigger="keyup changed delay:300ms"`.
   - Toast vindo do server: handler chama `Toast(...)` → seta header `HX-Trigger: {"toast":{...}}` que o `cirth.js` consome.
   - Redirect pós-POST: `HxRedirect("/path")` (envia `HX-Redirect` no HTMX, `302` fora dele).
+  - **NUNCA** use `data-hx-*` em atributos lidos por JS custom — HTMX 2.x auto-processa `data-hx-*` como se fossem `hx-*`, causando duplo-fire de requests. Use nomes neutros (ex.: `data-load-url`) para metadados consumidos só pelo nosso JS.
 - Streaming de chat usa **SSE** (`text/event-stream`): POST cacheia o request em `IMemoryCache`, retorna HTML com `sse-connect`; endpoint GET `/Chat/Stream/{id}` consome `IAsyncEnumerable<string>` da Application e emite eventos `token` / `done`.
 - **NÃO** chame Application handlers direto da view `.cshtml`. Sempre via PageModel.
 

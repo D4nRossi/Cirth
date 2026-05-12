@@ -83,9 +83,12 @@ document.addEventListener('click', (e) => {
     group.parentElement.querySelectorAll('[data-tab-panel]').forEach(p => {
         p.hidden = p.dataset.tabPanel !== targetId;
     });
-    // Fire HTMX request if tab has hx-get and not already loaded
-    if (tab.dataset.hxGet && !tab.dataset.loaded) {
-        htmx.ajax('GET', tab.dataset.hxGet, { target: `[data-tab-panel="${targetId}"]`, swap: 'innerHTML' });
+    // Fire HTMX request if tab has data-load-url and not already loaded.
+    // Note: don't use `data-hx-get` here — HTMX 2.x auto-processes `data-hx-*`
+    // attributes and would fire the request a second time, swapping into the
+    // wrong target.
+    if (tab.dataset.loadUrl && !tab.dataset.loaded) {
+        htmx.ajax('GET', tab.dataset.loadUrl, { target: `[data-tab-panel="${targetId}"]`, swap: 'innerHTML' });
         tab.dataset.loaded = '1';
     }
 });
