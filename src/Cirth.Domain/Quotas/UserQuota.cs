@@ -88,5 +88,5 @@ public sealed class UserQuota : Entity<UserId>
     }
 
     private static DateTimeOffset NextMidnightUtc()
-        => DateTimeOffset.UtcNow.Date.AddDays(1);
+        => new DateTimeOffset(DateTimeOffset.UtcNow.UtcDateTime.Date.AddDays(1), TimeSpan.Zero);
 }

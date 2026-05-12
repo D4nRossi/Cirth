@@ -1,0 +1,119 @@
+@page "/tags"
+@attribute [Authorize]
+@inject IMediator Mediator
+@inject ISnackbar Snackbar
+
+<PageTitle>Tags — Cirth</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4" Style="font-family:'Cinzel',serif">Tags</MudText>
+
+<MudGrid Class="mb-4">
+    <MudItem xs="12" Class="d-flex justify-end">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Label"
+                   OnClick="@(() => _createOpen = true)">
+            Nova tag
+        </MudButton>
+    </MudItem>
+</MudGrid>
+
+@if (_createOpen)
+{
+    <MudPaper Class="pa-4 mb-4" Elevation="2">
+        <MudText Typo="Typo.h6" Class="mb-3">Nova tag</MudText>
+        <MudGrid>
+            <MudItem xs="12" sm="5">
+                <MudTextField @bind-Value="_newName" Label="Nome" Variant="Variant.Outlined"
+                              MaxLength="100" Required="true" />
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudTextField @bind-Value="_newColor" Label="Cor (hex, ex: #6B7280)"
+                              Variant="Variant.Outlined" Placeholder="#RRGGBB" MaxLength="7"
+                              Adornment="Adornment.End"
+                              AdornmentIcon="@Icons.Material.Filled.Circle"
+                              AdornmentColor="@(IsValidColor(_newColor) ? Color.Inherit : Color.Default)" />
+            </MudItem>
+            <MudItem xs="12" sm="3" Class="d-flex align-end gap-2">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateTag"
+                           Disabled="@(_saving || string.IsNullOrWhiteSpace(_newName))">
+                    @if (_saving) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+                    Criar
+                </MudButton>
+                <MudButton Variant="Variant.Text" OnClick="@(() => { _createOpen = false; _newName = string.Empty; _newColor = string.Empty; })">
+                    Cancelar
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+}
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Class="my-4" />
+}
+else if (_tags.Count == 0)
+{
+    <MudAlert Severity="Severity.Info" Class="mt-4">
+        Nenhuma tag criada ainda. Tags ajudam a categorizar e filtrar seus documentos.
+    </MudAlert>
+}
+else
+{
+    <MudPaper Class="pa-4" Elevation="1">
+        <div class="d-flex flex-wrap gap-2">
+            @foreach (var tag in _tags)
+            {
+                <MudChip T="string" Size="Size.Medium"
+                         Style="@(tag.Color is not null ? $"background-color:{tag.Color};color:#fff" : "")">
+                    @tag.Name
+                </MudChip>
+            }
+        </div>
+    </MudPaper>
+}
+
+@code {
+    private bool _loading = true;
+    private bool _createOpen;
+    private bool _saving;
+    private string _newName = string.Empty;
+    private string _newColor = string.Empty;
+    private List<Cirth.Application.Features.Tags.CreateTag.TagDto> _tags = [];
+
+    protected override async Task OnInitializedAsync() => await LoadTags();
+
+    private async Task LoadTags()
+    {
+        _loading = true;
+        var result = await Mediator.Send(new ListTagsQuery());
+        if (result.IsSuccess)
+            _tags = result.Value!.ToList();
+        else
+            Snackbar.Add(result.Error!.Message, Severity.Error);
+        _loading = false;
+    }
+
+    private async Task CreateTag()
+    {
+        if (string.IsNullOrWhiteSpace(_newName)) return;
+        _saving = true;
+        var color = IsValidColor(_newColor) ? _newColor : null;
+        var result = await Mediator.Send(new CreateTagCommand(_newName.Trim(), color));
+        _saving = false;
+        if (result.IsSuccess)
+        {
+            Snackbar.Add("Tag criada!", Severity.Success);
+            _createOpen = false;
+            _newName = string.Empty;
+            _newColor = string.Empty;
+            await LoadTags();
+        }
+        else
+        {
+            Snackbar.Add(result.Error!.Message, Severity.Error);
+        }
+    }
+
+    private static bool IsValidColor(string? color) =>
+        !string.IsNullOrWhiteSpace(color) && System.Text.RegularExpressions.Regex.IsMatch(color, "^#[0-9A-Fa-f]{6}$");
+}

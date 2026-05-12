@@ -41,6 +41,21 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, IMediat
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+
+        // Global tenant query filters — enforced at DB context level.
+        // When _currentTenantId is null (migrations, seed, IBypassTenantScope) all records are visible.
+        modelBuilder.Entity<Document>().HasQueryFilter(e => _currentTenantId == null || e.TenantId == _currentTenantId);
+        modelBuilder.Entity<Chunk>().HasQueryFilter(e => _currentTenantId == null || e.TenantId == _currentTenantId);
+        modelBuilder.Entity<Tag>().HasQueryFilter(e => _currentTenantId == null || e.TenantId == _currentTenantId);
+        modelBuilder.Entity<Collection>().HasQueryFilter(e => _currentTenantId == null || e.TenantId == _currentTenantId);
+        modelBuilder.Entity<Conversation>().HasQueryFilter(e => _currentTenantId == null || e.TenantId == _currentTenantId);
+        modelBuilder.Entity<SavedAnswer>().HasQueryFilter(e => _currentTenantId == null || e.TenantId == _currentTenantId);
+        modelBuilder.Entity<ApiKey>().HasQueryFilter(e => _currentTenantId == null || e.TenantId == _currentTenantId);
+        modelBuilder.Entity<UserInvite>().HasQueryFilter(e => _currentTenantId == null || e.TenantId == _currentTenantId);
+        modelBuilder.Entity<UserQuota>().HasQueryFilter(e => _currentTenantId == null || e.TenantId == _currentTenantId);
+        modelBuilder.Entity<IngestionJob>().HasQueryFilter(e => _currentTenantId == null || e.TenantId == _currentTenantId);
+        modelBuilder.Entity<User>().HasQueryFilter(e => _currentTenantId == null || e.TenantId == _currentTenantId);
+
         base.OnModelCreating(modelBuilder);
     }
 

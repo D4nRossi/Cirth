@@ -35,9 +35,8 @@ internal sealed class ChunkRepository(AppDbContext db) : IChunkRepository
         foreach (var c in chunks) c.MarkAsHistorical();
     }
 
-    public Task<IReadOnlyList<Chunk>> GetByVersionAsync(DocumentVersionId versionId, CancellationToken ct)
-        => db.Chunks.Where(c => c.DocumentVersionId == versionId).ToListAsync(ct)
-            .ContinueWith<IReadOnlyList<Chunk>>(t => t.Result, ct);
+    public async Task<IReadOnlyList<Chunk>> GetByVersionAsync(DocumentVersionId versionId, CancellationToken ct)
+        => await db.Chunks.Where(c => c.DocumentVersionId == versionId).ToListAsync(ct);
 }
 
 internal sealed class TagRepository(AppDbContext db) : ITagRepository
@@ -46,9 +45,8 @@ internal sealed class TagRepository(AppDbContext db) : ITagRepository
         => db.Tags.FirstOrDefaultAsync(t => t.Id == id, ct);
     public Task<Tag?> GetByNameAsync(TenantId tenantId, string name, CancellationToken ct)
         => db.Tags.FirstOrDefaultAsync(t => t.TenantId == tenantId && t.Name == name.ToLowerInvariant(), ct);
-    public Task<IReadOnlyList<Tag>> ListAsync(TenantId tenantId, CancellationToken ct)
-        => db.Tags.Where(t => t.TenantId == tenantId).OrderBy(t => t.Name).ToListAsync(ct)
-            .ContinueWith<IReadOnlyList<Tag>>(t => t.Result, ct);
+    public async Task<IReadOnlyList<Tag>> ListAsync(TenantId tenantId, CancellationToken ct)
+        => await db.Tags.Where(t => t.TenantId == tenantId).OrderBy(t => t.Name).ToListAsync(ct);
     public Task AddAsync(Tag tag, CancellationToken ct) => db.Tags.AddAsync(tag, ct).AsTask();
     public void Remove(Tag tag) => db.Tags.Remove(tag);
 }
@@ -57,9 +55,8 @@ internal sealed class CollectionRepository(AppDbContext db) : ICollectionReposit
 {
     public Task<Collection?> GetByIdAsync(CollectionId id, CancellationToken ct)
         => db.Collections.FirstOrDefaultAsync(c => c.Id == id, ct);
-    public Task<IReadOnlyList<Collection>> ListAsync(TenantId tenantId, CancellationToken ct)
-        => db.Collections.Where(c => c.TenantId == tenantId).ToListAsync(ct)
-            .ContinueWith<IReadOnlyList<Collection>>(t => t.Result, ct);
+    public async Task<IReadOnlyList<Collection>> ListAsync(TenantId tenantId, CancellationToken ct)
+        => await db.Collections.Where(c => c.TenantId == tenantId).ToListAsync(ct);
     public Task AddAsync(Collection collection, CancellationToken ct) => db.Collections.AddAsync(collection, ct).AsTask();
     public void Remove(Collection collection) => db.Collections.Remove(collection);
 }
@@ -68,12 +65,11 @@ internal sealed class ConversationRepository(AppDbContext db) : IConversationRep
 {
     public Task<Conversation?> GetByIdAsync(ConversationId id, CancellationToken ct)
         => db.Conversations.Include(c => c.Messages).FirstOrDefaultAsync(c => c.Id == id, ct);
-    public Task<IReadOnlyList<Conversation>> ListByUserAsync(TenantId tenantId, UserId userId, CancellationToken ct)
-        => db.Conversations
+    public async Task<IReadOnlyList<Conversation>> ListByUserAsync(TenantId tenantId, UserId userId, CancellationToken ct)
+        => await db.Conversations
             .Where(c => c.TenantId == tenantId && c.UserId == userId)
             .OrderByDescending(c => c.UpdatedAt)
-            .ToListAsync(ct)
-            .ContinueWith<IReadOnlyList<Conversation>>(t => t.Result, ct);
+            .ToListAsync(ct);
     public Task AddAsync(Conversation conversation, CancellationToken ct) => db.Conversations.AddAsync(conversation, ct).AsTask();
 }
 
@@ -81,9 +77,8 @@ internal sealed class SavedAnswerRepository(AppDbContext db) : ISavedAnswerRepos
 {
     public Task<SavedAnswer?> GetByIdAsync(SavedAnswerId id, CancellationToken ct)
         => db.SavedAnswers.FirstOrDefaultAsync(s => s.Id == id, ct);
-    public Task<IReadOnlyList<SavedAnswer>> ListAsync(TenantId tenantId, CancellationToken ct)
-        => db.SavedAnswers.Where(s => s.TenantId == tenantId).ToListAsync(ct)
-            .ContinueWith<IReadOnlyList<SavedAnswer>>(t => t.Result, ct);
+    public async Task<IReadOnlyList<SavedAnswer>> ListAsync(TenantId tenantId, CancellationToken ct)
+        => await db.SavedAnswers.Where(s => s.TenantId == tenantId).ToListAsync(ct);
     public Task AddAsync(SavedAnswer savedAnswer, CancellationToken ct) => db.SavedAnswers.AddAsync(savedAnswer, ct).AsTask();
     public void Remove(SavedAnswer savedAnswer) => db.SavedAnswers.Remove(savedAnswer);
 }
@@ -93,10 +88,9 @@ internal sealed class UserRepository(AppDbContext db) : IUserRepository
     public Task<User?> GetByIdAsync(UserId id, CancellationToken ct)
         => db.Users.FirstOrDefaultAsync(u => u.Id == id, ct);
     public Task<User?> GetByEntraObjectIdAsync(Guid entraObjectId, CancellationToken ct)
-        => db.Users.FirstOrDefaultAsync(u => u.EntraObjectId == entraObjectId, ct);
-    public Task<IReadOnlyList<User>> ListByTenantAsync(TenantId tenantId, CancellationToken ct)
-        => db.Users.Where(u => u.TenantId == tenantId).ToListAsync(ct)
-            .ContinueWith<IReadOnlyList<User>>(t => t.Result, ct);
+        => db.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.EntraObjectId == entraObjectId, ct);
+    public async Task<IReadOnlyList<User>> ListByTenantAsync(TenantId tenantId, CancellationToken ct)
+        => await db.Users.Where(u => u.TenantId == tenantId).ToListAsync(ct);
     public Task AddAsync(User user, CancellationToken ct) => db.Users.AddAsync(user, ct).AsTask();
 }
 
@@ -111,9 +105,8 @@ internal sealed class ApiKeyRepository(AppDbContext db) : IApiKeyRepository
 {
     public Task<ApiKey?> GetByHashAsync(string keyHash, CancellationToken ct)
         => db.ApiKeys.FirstOrDefaultAsync(k => k.KeyHash == keyHash, ct);
-    public Task<IReadOnlyList<ApiKey>> ListByUserAsync(UserId userId, CancellationToken ct)
-        => db.ApiKeys.Where(k => k.UserId == userId && !k.Revoked).ToListAsync(ct)
-            .ContinueWith<IReadOnlyList<ApiKey>>(t => t.Result, ct);
+    public async Task<IReadOnlyList<ApiKey>> ListByUserAsync(UserId userId, CancellationToken ct)
+        => await db.ApiKeys.Where(k => k.UserId == userId && !k.Revoked).ToListAsync(ct);
     public Task AddAsync(ApiKey apiKey, CancellationToken ct) => db.ApiKeys.AddAsync(apiKey, ct).AsTask();
 }
 
@@ -134,23 +127,27 @@ internal sealed class UserQuotaRepository(AppDbContext db) : IUserQuotaRepositor
 internal sealed class DocumentRelationsRepository(AppDbContext db) : IDocumentRelationsRepository
 {
     public Task AddTagAsync(Guid documentId, Guid tagId, CancellationToken ct)
-        => db.DocumentTags.AddAsync(new() { DocumentId = documentId, TagId = tagId }, ct).AsTask();
+        => db.DocumentTags.AddAsync(new() { DocumentId = new(documentId), TagId = new(tagId) }, ct).AsTask();
 
     public async Task RemoveTagAsync(Guid documentId, Guid tagId, CancellationToken ct)
     {
+        var docId = new DocumentId(documentId);
+        var tId = new TagId(tagId);
         var link = await db.DocumentTags
-            .FirstOrDefaultAsync(dt => dt.DocumentId == documentId && dt.TagId == tagId, ct);
+            .FirstOrDefaultAsync(dt => dt.DocumentId == docId && dt.TagId == tId, ct);
         if (link is not null)
             db.DocumentTags.Remove(link);
     }
 
     public Task AddToCollectionAsync(Guid collectionId, Guid documentId, CancellationToken ct)
-        => db.CollectionDocuments.AddAsync(new() { CollectionId = collectionId, DocumentId = documentId }, ct).AsTask();
+        => db.CollectionDocuments.AddAsync(new() { CollectionId = new(collectionId), DocumentId = new(documentId) }, ct).AsTask();
 
     public async Task RemoveFromCollectionAsync(Guid collectionId, Guid documentId, CancellationToken ct)
     {
+        var colId = new CollectionId(collectionId);
+        var docId = new DocumentId(documentId);
         var link = await db.CollectionDocuments
-            .FirstOrDefaultAsync(cd => cd.CollectionId == collectionId && cd.DocumentId == documentId, ct);
+            .FirstOrDefaultAsync(cd => cd.CollectionId == colId && cd.DocumentId == docId, ct);
         if (link is not null)
             db.CollectionDocuments.Remove(link);
     }

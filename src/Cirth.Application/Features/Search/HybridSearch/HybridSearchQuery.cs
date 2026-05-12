@@ -76,18 +76,19 @@ internal sealed class HybridSearchQueryHandler(
             return Result<HybridSearchResult>.Success(new([], q.Query, sw.Elapsed));
         }
 
+        var topChunkIds = topIds.ConvertAll(g => new ChunkId(g));
         var chunks = await db.Chunks
-            .Where(c => topIds.Contains(c.Id.Value) && c.IsCurrent)
+            .Where(c => topChunkIds.Contains(c.Id) && c.IsCurrent)
             .ToListAsync(ct);
 
-        var versionIds = chunks.Select(c => c.DocumentVersionId.Value).Distinct().ToList();
+        var docVersionIds = chunks.Select(c => c.DocumentVersionId).Distinct().ToList();
         var versions = await db.DocumentVersions
-            .Where(v => versionIds.Contains(v.Id.Value))
+            .Where(v => docVersionIds.Contains(v.Id))
             .ToListAsync(ct);
 
-        var documentIds = versions.Select(v => v.DocumentId.Value).Distinct().ToList();
+        var docIds = versions.Select(v => v.DocumentId).Distinct().ToList();
 
-        var docQuery = db.Documents.Where(d => documentIds.Contains(d.Id.Value));
+        var docQuery = db.Documents.Where(d => docIds.Contains(d.Id));
         if (!string.IsNullOrWhiteSpace(q.Author))
             docQuery = docQuery.Where(d => d.Author != null && d.Author.Contains(q.Author));
         if (q.DateFrom.HasValue)
@@ -95,21 +96,26 @@ internal sealed class HybridSearchQueryHandler(
         if (q.DateTo.HasValue)
             docQuery = docQuery.Where(d => d.CreatedAt <= q.DateTo.Value);
         if (q.CollectionId.HasValue)
-            docQuery = docQuery.Where(d => db.CollectionDocuments.Any(cd =>
-                cd.CollectionId == q.CollectionId.Value && cd.DocumentId == d.Id.Value));
+        {
+            var colId = new CollectionId(q.CollectionId.Value);
+            docQuery = docQuery.Where(d => db.CollectionDocuments.Any(cd => cd.CollectionId == colId && cd.DocumentId == d.Id));
+        }
         if (q.TagId.HasValue)
-            docQuery = docQuery.Where(d => db.DocumentTags.Any(dt =>
-                dt.DocumentId == d.Id.Value && dt.TagId == q.TagId.Value));
+        {
+            var tagId = new TagId(q.TagId.Value);
+            docQuery = docQuery.Where(d => db.DocumentTags.Any(dt => dt.DocumentId == d.Id && dt.TagId == tagId));
+        }
 
         var documents = await docQuery.ToListAsync(ct);
-        var filteredDocIds = documents.Select(d => d.Id.Value).ToHashSet();
+        var filteredDocIds = documents.Select(d => d.Id).ToHashSet();
 
         var tagsJoin = await db.DocumentTags
             .Where(dt => filteredDocIds.Contains(dt.DocumentId))
-            .Join(db.Tags, dt => dt.TagId, t => t.Id.Value, (dt, t) => new { dt.DocumentId, t.Name })
+            .Join(db.Tags, dt => dt.TagId, t => t.Id, (dt, t) => new { dt.DocumentId, t.Name })
             .ToListAsync(ct);
 
-        var tagsByDoc = tagsJoin.GroupBy(x => x.DocumentId)
+        var tagsByDoc = tagsJoin
+            .GroupBy(x => x.DocumentId)
             .ToDictionary(g => g.Key, g => g.Select(x => x.Name).ToList());
 
         var versionMap = versions.ToDictionary(v => v.Id.Value);
@@ -127,7 +133,7 @@ internal sealed class HybridSearchQueryHandler(
                     c.Id.Value, docId, doc.Title, doc.Author,
                     c.Ordinal, c.Content, null,
                     scores.GetValueOrDefault(c.Id.Value, 0),
-                    tagsByDoc.GetValueOrDefault(docId) ?? []);
+                    tagsByDoc.GetValueOrDefault(doc.Id) ?? []);
             })
             .Where(h => h is not null)
             .Cast<SearchHit>()

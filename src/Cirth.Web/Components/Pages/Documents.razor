@@ -3,6 +3,7 @@
 @inject IMediator Mediator
 @inject ISnackbar Snackbar
 @inject NavigationManager Nav
+@inject IDialogService Dialog
 
 <PageTitle>Documentos — Cirth</PageTitle>
 
@@ -17,7 +18,7 @@
     </MudItem>
     <MudItem xs="12" sm="4" Class="d-flex justify-end align-center">
         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Upload"
-                   OnClick="@(() => _uploadOpen = true)">
+                   OnClick="OpenUploadDialog">
             Novo documento
         </MudButton>
     </MudItem>
@@ -35,7 +36,8 @@ else if (_documents.Count == 0)
 }
 else
 {
-    <MudTable T="DocumentSummaryDto" Items="_documents" Hover="true" Class="mt-4" OnRowClick="@((TableRowClickEventArgs<DocumentSummaryDto> args) => { if (args.Item is not null) Nav.NavigateTo($"/documents/{args.Item.Id}"); })">
+    <MudTable T="DocumentSummaryDto" Items="_documents" Hover="true" Class="mt-4"
+              OnRowClick="@((TableRowClickEventArgs<DocumentSummaryDto> args) => { if (args.Item is not null) Nav.NavigateTo($"/documents/{args.Item.Id}"); })">
         <HeaderContent>
             <MudTh>Título</MudTh>
             <MudTh>Tipo</MudTh>
@@ -65,11 +67,8 @@ else
     </MudTable>
 }
 
-<UploadDocumentDialog @bind-Open="_uploadOpen" OnUploaded="LoadDocuments" />
-
 @code {
     private bool _loading = true;
-    private bool _uploadOpen = false;
     private string _search = string.Empty;
     private List<DocumentSummaryDto> _documents = [];
 
@@ -78,11 +77,26 @@ else
     private async Task LoadDocuments()
     {
         _loading = true;
-        var result = await Mediator.Send(new ListDocumentsQuery());
-        if (result.IsSuccess)
-            _documents = result.Value!.Items.ToList();
-        else
-            Snackbar.Add(result.Error!.Message, Severity.Error);
-        _loading = false;
+        try
+        {
+            var result = await Mediator.Send(new ListDocumentsQuery());
+            if (result.IsSuccess)
+                _documents = result.Value!.Items.ToList();
+            else
+                Snackbar.Add(result.Error!.Message, Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OpenUploadDialog()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await Dialog.ShowAsync<UploadDocumentDialog>("Novo documento", options);
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+            await LoadDocuments();
     }
 }

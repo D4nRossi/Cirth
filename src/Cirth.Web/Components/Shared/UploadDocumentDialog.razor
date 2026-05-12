@@ -52,10 +52,7 @@
 </MudDialog>
 
 @code {
-    [CascadingParameter] public MudDialogInstance? MudDialog { get; set; }
-    [Parameter] public bool Open { get; set; }
-    [Parameter] public EventCallback<bool> OpenChanged { get; set; }
-    [Parameter] public EventCallback OnUploaded { get; set; }
+    [CascadingParameter] public MudDialogInstance MudDialog { get; set; } = null!;
 
     private MudForm _form = null!;
     private bool _isValid;
@@ -69,11 +66,7 @@
     private string? ValidateUrl(string url) =>
         Uri.IsWellFormedUriString(url, UriKind.Absolute) ? null : "URL inválida";
 
-    private void Cancel()
-    {
-        OpenChanged.InvokeAsync(false);
-        MudDialog?.Cancel();
-    }
+    private void Cancel() => MudDialog.Cancel();
 
     private async Task Upload()
     {
@@ -88,23 +81,21 @@
             if (_mode == "url")
             {
                 result = await Mediator.Send(new UploadDocumentCommand(
-                    _title, "url.txt", Stream.Null, "text/uri-list", 0, _author, true, _url));
+                    _title, "url.txt", Stream.Null, "text/uri-list", 0, _author.NullIfEmpty(), true, _url));
             }
             else
             {
                 if (_file is null) { Snackbar.Add("Selecione um arquivo", Severity.Warning); return; }
                 const long MaxSize = 50 * 1024 * 1024;
-                using var stream = _file.OpenReadStream(MaxSize);
+                await using var stream = _file.OpenReadStream(MaxSize);
                 result = await Mediator.Send(new UploadDocumentCommand(
-                    _title, _file.Name, stream, _file.ContentType, _file.Size, _author, false, null));
+                    _title, _file.Name, stream, _file.ContentType, _file.Size, _author.NullIfEmpty(), false, null));
             }
 
             if (result.IsSuccess)
             {
                 Snackbar.Add("Documento enviado e em processamento!", Severity.Success);
-                await OnUploaded.InvokeAsync();
-                await OpenChanged.InvokeAsync(false);
-                MudDialog?.Close();
+                MudDialog.Close(DialogResult.Ok(true));
             }
             else
             {

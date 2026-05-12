@@ -8,23 +8,25 @@ namespace Cirth.Application.Features.Tags.SuggestTags;
 public sealed record SuggestTagsCommand(Guid DocumentId) : IRequest<Result<IReadOnlyList<string>>>;
 
 internal sealed class SuggestTagsCommandHandler(
-    ITenantProvider tenantProvider,
     ILlmChatService llmService,
     IQueryDbContext db) : IRequestHandler<SuggestTagsCommand, Result<IReadOnlyList<string>>>
 {
     public async Task<Result<IReadOnlyList<string>>> Handle(SuggestTagsCommand cmd, CancellationToken ct)
     {
-        var tenantId = tenantProvider.CurrentTenantId.Value;
+        var docId = new DocumentId(cmd.DocumentId);
 
         var doc = await db.Documents
-            .Where(d => d.Id.Value == cmd.DocumentId && d.TenantId.Value == tenantId)
+            .Where(d => d.Id == docId)
             .FirstOrDefaultAsync(ct);
         if (doc is null)
             return Error.NotFound("document.not_found", "Document not found.");
 
-        // Get first few chunks as sample for tag suggestion
+        if (doc.CurrentVersionId is null)
+            return Result<IReadOnlyList<string>>.Success([]);
+
+        var versionId = doc.CurrentVersionId.Value;
         var sample = await db.Chunks
-            .Where(c => c.TenantId.Value == tenantId && c.DocumentVersionId.Value == doc.CurrentVersionId!.Value.Value && c.IsCurrent)
+            .Where(c => c.DocumentVersionId == versionId && c.IsCurrent)
             .OrderBy(c => c.Ordinal)
             .Take(3)
             .Select(c => c.Content)

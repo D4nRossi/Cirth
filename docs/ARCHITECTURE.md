@@ -266,6 +266,22 @@ Consulte `docs/adr/` para o histórico completo. Resumo:
 - **ADR-005**: Multi-tenant lógico via TenantId + global query filter desde a V1.
 - **ADR-006**: MCP server reusa Application handlers (mesma lógica que UI).
 
+## 9. Notas de implementação relevantes
+
+### Upload de arquivos (Blazor Server)
+`IBrowserFile.OpenReadStream()` retorna um stream não-seekable. O `UploadDocumentCommandHandler` copia o conteúdo para um `MemoryStream` antes de calcular o hash SHA-256 e enviar ao MinIO. Limite de 50 MB por upload.
+
+### CirthHub (SignalR)
+`Cirth.Infrastructure.Auth.CirthHub` é o hub canônico — contém a lógica de grupos por `userId`. O Web apenas mapeia `app.MapHub<CirthHub>("/hubs/cirth")`. Não existe hub duplicado em `Cirth.Web`.
+
+`INotificationHub` é registrado como `SignalRNotificationHub` no Web (via `AddSignalRNotifications()`), e como `NullNotificationHub` no Worker (padrão do `AddInfrastructure()`).
+
+### Worker: contexto de tenant
+`TenantScopingBehavior` requer `ITenantProvider` para todo comando MediatR. O Worker registra `WorkerTenantProvider` (implementação scoped sem HTTP context) e cada job scope chama `workerTenant.Set(tenantId, userId)` com os valores do payload do job antes de despachar qualquer comando via MediatR.
+
+### Repositórios assíncronos
+Todos os métodos de repositório retornam `IReadOnlyList<T>` usando `async/await` puro — `ContinueWith` foi removido porque bloqueia a thread pool via `.Result`.
+
 ## 9. Topologia de deploy (V1)
 
 ```plantuml

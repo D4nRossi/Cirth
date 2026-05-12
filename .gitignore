@@ -5,9 +5,8 @@
 *.key
 
 # .NET
-[Bb]in/
-[Bb]in\*/
-[Oo]bj/
+**/[Bb]in/
+**/[Oo]bj/
 out/
 publish/
 *.user

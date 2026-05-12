@@ -15,15 +15,14 @@ internal sealed class ListConversationsQueryHandler(
 {
     public async Task<Result<IReadOnlyList<ConversationSummaryDto>>> Handle(ListConversationsQuery q, CancellationToken ct)
     {
-        var tenantId = tenantProvider.CurrentTenantId.Value;
-        var userId = tenantProvider.CurrentUserId.Value;
+        var userId = tenantProvider.CurrentUserId;
 
         var convs = await db.Conversations
-            .Where(c => c.TenantId.Value == tenantId && c.UserId.Value == userId)
+            .Where(c => c.UserId == userId)
             .OrderByDescending(c => c.UpdatedAt)
             .Select(c => new ConversationSummaryDto(
                 c.Id.Value, c.Title,
-                db.Messages.Count(m => m.ConversationId.Value == c.Id.Value),
+                db.Messages.Count(m => m.ConversationId == c.Id),
                 c.UpdatedAt))
             .ToListAsync(ct);
 

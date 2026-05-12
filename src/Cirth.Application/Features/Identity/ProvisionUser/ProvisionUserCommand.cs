@@ -1,3 +1,4 @@
+using Cirth.Application.Common;
 using Cirth.Application.Common.Ports;
 using Cirth.Domain.Quotas;
 using Cirth.Domain.Tenants;
@@ -15,7 +16,7 @@ public sealed record ProvisionUserCommand(
     Guid EntraObjectId,
     string Email,
     string DisplayName,
-    Guid TenantId) : IRequest<Result<ProvisionUserResult>>;
+    Guid TenantId) : IRequest<Result<ProvisionUserResult>>, IBypassTenantScope;
 
 public sealed record ProvisionUserResult(Guid UserId, Guid TenantId, string Role);
 
@@ -48,7 +49,7 @@ internal sealed class ProvisionUserCommandHandler(
         }
         else
         {
-            var anyUser = await db.Users.AnyAsync(u => u.TenantId.Value == tenantId.Value, ct);
+            var anyUser = await db.Users.AnyAsync(u => u.TenantId == tenantId, ct);
             role = anyUser ? UserRole.User : UserRole.Admin;
         }
 

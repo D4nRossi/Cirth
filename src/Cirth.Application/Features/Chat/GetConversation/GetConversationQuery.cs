@@ -17,20 +17,18 @@ internal sealed class GetConversationQueryHandler(
 {
     public async Task<Result<ConversationDetailDto>> Handle(GetConversationQuery q, CancellationToken ct)
     {
-        var tenantId = tenantProvider.CurrentTenantId.Value;
-        var userId = tenantProvider.CurrentUserId.Value;
+        var convId = new ConversationId(q.ConversationId);
+        var userId = tenantProvider.CurrentUserId;
 
         var conv = await db.Conversations
-            .Where(c => c.Id.Value == q.ConversationId
-                && c.TenantId.Value == tenantId
-                && c.UserId.Value == userId)
+            .Where(c => c.Id == convId && c.UserId == userId)
             .FirstOrDefaultAsync(ct);
 
         if (conv is null)
             return Error.NotFound("conversation.not_found", "Conversation not found.");
 
         var messages = await db.Messages
-            .Where(m => m.ConversationId.Value == q.ConversationId)
+            .Where(m => m.ConversationId == convId)
             .OrderBy(m => m.CreatedAt)
             .Select(m => new MessageDto(m.Id.Value, m.Role.ToString(), m.Content, m.CitedChunkIds, m.CreatedAt))
             .ToListAsync(ct);

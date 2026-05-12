@@ -68,9 +68,13 @@ internal sealed class UploadDocumentCommandHandler(
         else
         {
             storageKey = $"{tenantId.Value}/{document.Id.Value}/v1/{cmd.FileName}";
-            contentHash = await ComputeHashAsync(cmd.Content, ct);
-            cmd.Content.Position = 0;
-            await objectStorage.PutAsync("cirth-uploads", storageKey, cmd.Content, cmd.MimeType, ct);
+            // BrowserFileStream from Blazor is not seekable; buffer so we can hash then rewind.
+            using var buf = new MemoryStream();
+            await cmd.Content.CopyToAsync(buf, ct);
+            buf.Position = 0;
+            contentHash = await ComputeHashAsync(buf, ct);
+            buf.Position = 0;
+            await objectStorage.PutAsync("cirth-uploads", storageKey, buf, cmd.MimeType, ct);
         }
 
         var version = document.AddVersion(contentHash, storageKey, cmd.SizeBytes, cmd.MimeType);

@@ -119,6 +119,9 @@ public static class DependencyInjection
         // Auth
         services.AddScoped<IApiKeyHasher, ApiKeyHasher>();
 
+        // Notification hub — null by default; Web overrides with SignalRNotificationHub via AddSignalRNotifications().
+        services.AddScoped<INotificationHub, NullNotificationHub>();
+
         // HTTP client for web link parsing
         services.AddHttpClient("web-fetch", client =>
         {
@@ -126,6 +129,15 @@ public static class DependencyInjection
             client.Timeout = TimeSpan.FromSeconds(30);
         });
 
+        return services;
+    }
+
+    /// <summary>
+    /// Registers SignalR-backed INotificationHub. Call this only from the Web host, after AddSignalR().
+    /// </summary>
+    public static IServiceCollection AddSignalRNotifications(this IServiceCollection services)
+    {
+        services.AddScoped<INotificationHub, SignalRNotificationHub>();
         return services;
     }
 }

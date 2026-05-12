@@ -42,7 +42,19 @@
 
     <MudMainContent Class="cirth-main">
         <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="pa-6">
-            @Body
+            <ErrorBoundary>
+                <ChildContent>@Body</ChildContent>
+                <ErrorContent Context="ex">
+                    <MudAlert Severity="Severity.Error" Class="mt-4" Variant="Variant.Filled">
+                        <MudText Typo="Typo.h6">Algo deu errado</MudText>
+                        <MudText>Ocorreu um erro inesperado nessa página.</MudText>
+                        <MudButton Variant="Variant.Text" Color="Color.Inherit" Class="mt-2"
+                                   OnClick="@(() => Nav.NavigateTo("/", forceLoad: true))">
+                            Voltar ao início
+                        </MudButton>
+                    </MudAlert>
+                </ErrorContent>
+            </ErrorBoundary>
         </MudContainer>
     </MudMainContent>
 </MudLayout>

@@ -1,4 +1,5 @@
 using Cirth.Application;
+using Cirth.Application.Common.Ports;
 using Cirth.Infrastructure;
 using Cirth.Worker;
 using Serilog;
@@ -18,6 +19,9 @@ try
 
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration);
+    // Override the null ITenantProvider from Infrastructure with the job-scoped one.
+    builder.Services.AddScoped<WorkerTenantProvider>();
+    builder.Services.AddScoped<ITenantProvider>(sp => sp.GetRequiredService<WorkerTenantProvider>());
     builder.Services.AddHostedService<JobPollingService>();
 
     var host = builder.Build();

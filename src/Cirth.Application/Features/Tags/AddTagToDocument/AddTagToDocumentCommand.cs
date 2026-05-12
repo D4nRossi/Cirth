@@ -8,27 +8,25 @@ namespace Cirth.Application.Features.Tags.AddTagToDocument;
 public sealed record AddTagToDocumentCommand(Guid DocumentId, Guid TagId) : IRequest<Result<Unit>>;
 
 internal sealed class AddTagToDocumentCommandHandler(
-    ITenantProvider tenantProvider,
     IQueryDbContext db,
     IDocumentRelationsRepository relations,
     IUnitOfWork uow) : IRequestHandler<AddTagToDocumentCommand, Result<Unit>>
 {
     public async Task<Result<Unit>> Handle(AddTagToDocumentCommand cmd, CancellationToken ct)
     {
-        var tenantId = tenantProvider.CurrentTenantId.Value;
+        var docId = new DocumentId(cmd.DocumentId);
+        var tagId = new TagId(cmd.TagId);
 
-        var docExists = await db.Documents
-            .AnyAsync(d => d.Id.Value == cmd.DocumentId && d.TenantId.Value == tenantId, ct);
+        var docExists = await db.Documents.AnyAsync(d => d.Id == docId, ct);
         if (!docExists)
             return Error.NotFound("document.not_found", "Document not found.");
 
-        var tagExists = await db.Tags
-            .AnyAsync(t => t.Id.Value == cmd.TagId && t.TenantId.Value == tenantId, ct);
+        var tagExists = await db.Tags.AnyAsync(t => t.Id == tagId, ct);
         if (!tagExists)
             return Error.NotFound("tag.not_found", "Tag not found.");
 
         var already = await db.DocumentTags
-            .AnyAsync(dt => dt.DocumentId == cmd.DocumentId && dt.TagId == cmd.TagId, ct);
+            .AnyAsync(dt => dt.DocumentId == docId && dt.TagId == tagId, ct);
         if (already)
             return Result<Unit>.Success(Unit.Value);
 

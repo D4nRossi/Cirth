@@ -90,7 +90,8 @@ public sealed class JobPollingService(
     private static async Task ProcessDocumentJobAsync(
         IServiceProvider sp, JobRecord job, CancellationToken ct)
     {
-        var payload = JsonSerializer.Deserialize<ProcessDocumentPayload>(job.PayloadJson)!;
+        var payload = JsonSerializer.Deserialize<ProcessDocumentPayload>(job.PayloadJson)
+            ?? throw new InvalidOperationException($"Corrupted ProcessDocument payload for job {job.Id.Value}.");
 
         var objectStorage = sp.GetRequiredService<IObjectStorage>();
         var compositeParser = sp.GetRequiredService<CompositeDocumentParser>();
@@ -161,15 +162,17 @@ public sealed class JobPollingService(
     private static async Task SuggestTagsJobAsync(
         IServiceProvider sp, JobRecord job, CancellationToken ct)
     {
-        // The actual suggestion is handled by the SuggestTagsCommand handler.
-        // Here we just dispatch it via MediatR.
-        var mediator = sp.GetRequiredService<MediatR.IMediator>();
-        var payload = JsonSerializer.Deserialize<Dictionary<string, string>>(job.PayloadJson)!;
+        var payload = JsonSerializer.Deserialize<Dictionary<string, string>>(job.PayloadJson);
+        if (payload is null) return;
         if (!Guid.TryParse(payload.GetValueOrDefault("DocumentId"), out var docId)) return;
+        if (!Guid.TryParse(payload.GetValueOrDefault("TenantId"), out var tenantId)) return;
+        if (!Guid.TryParse(payload.GetValueOrDefault("UserId"), out var userId)) return;
 
-        // Set tenant context
-        var tenantProvider = sp.GetRequiredService<ITenantProvider>();
-        // Note: in Worker context, TenantProvider reads from job payload via IWorkerTenantContext
+        // Set the scoped tenant context before MediatR dispatches TenantScopingBehavior.
+        var workerTenant = sp.GetRequiredService<WorkerTenantProvider>();
+        workerTenant.Set(new TenantId(tenantId), new UserId(userId));
+
+        var mediator = sp.GetRequiredService<MediatR.IMediator>();
         await mediator.Send(new Application.Features.Tags.SuggestTags.SuggestTagsCommand(docId), ct);
     }
 }

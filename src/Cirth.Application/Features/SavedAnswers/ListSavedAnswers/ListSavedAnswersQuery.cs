@@ -25,17 +25,16 @@ internal sealed class ListSavedAnswersQueryHandler(
         {
             var embedding = await embeddingService.EmbedAsync(q.SearchQuery, ct);
             var hits = await vectorStore.SearchAsync(tenantId, embedding, 20, ct);
-            var ids = hits.Select(h => h.ChunkId.Value).ToList();
+            var ids = hits.Select(h => h.ChunkId.Value).Select(g => new SavedAnswerId(g)).ToList();
 
             result = await db.SavedAnswers
-                .Where(s => s.TenantId.Value == tenantId.Value && ids.Contains(s.Id.Value))
+                .Where(s => ids.Contains(s.Id))
                 .Select(s => new SavedAnswerSummaryDto(s.Id.Value, s.Question, s.Answer, s.UsageCount, s.UtilityScore, s.CreatedAt))
                 .ToListAsync(ct);
         }
         else
         {
             result = await db.SavedAnswers
-                .Where(s => s.TenantId.Value == tenantId.Value)
                 .OrderByDescending(s => s.UsageCount)
                 .Take(50)
                 .Select(s => new SavedAnswerSummaryDto(s.Id.Value, s.Question, s.Answer, s.UsageCount, s.UtilityScore, s.CreatedAt))

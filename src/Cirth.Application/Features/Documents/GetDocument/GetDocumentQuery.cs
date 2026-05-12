@@ -20,35 +20,34 @@ public sealed record DocumentVersionDto(Guid Id, int VersionNumber, string Conte
 public sealed record CollectionRefDto(Guid Id, string Name);
 
 internal sealed class GetDocumentQueryHandler(
-    ITenantProvider tenantProvider,
     IQueryDbContext db) : IRequestHandler<GetDocumentQuery, Result<DocumentDetailDto>>
 {
     public async Task<Result<DocumentDetailDto>> Handle(GetDocumentQuery q, CancellationToken ct)
     {
-        var tenantId = tenantProvider.CurrentTenantId.Value;
+        var docId = new DocumentId(q.DocumentId);
 
         var doc = await db.Documents
-            .Where(d => d.Id.Value == q.DocumentId && d.TenantId.Value == tenantId)
+            .Where(d => d.Id == docId)
             .FirstOrDefaultAsync(ct);
 
         if (doc is null)
             return Error.NotFound("document.not_found", "Document not found.");
 
         var versions = await db.DocumentVersions
-            .Where(v => v.DocumentId.Value == q.DocumentId)
+            .Where(v => v.DocumentId == docId)
             .OrderByDescending(v => v.VersionNumber)
             .Select(v => new DocumentVersionDto(v.Id.Value, v.VersionNumber, v.ContentHash,
                 v.SizeBytes, v.MimeType, v.IsCurrent, v.CreatedAt))
             .ToListAsync(ct);
 
         var tags = await db.DocumentTags
-            .Where(dt => dt.DocumentId == q.DocumentId)
-            .Join(db.Tags, dt => dt.TagId, t => t.Id.Value, (_, t) => new ListDocuments.TagDto(t.Id.Value, t.Name, t.Color))
+            .Where(dt => dt.DocumentId == docId)
+            .Join(db.Tags, dt => dt.TagId, t => t.Id, (_, t) => new ListDocuments.TagDto(t.Id.Value, t.Name, t.Color))
             .ToListAsync(ct);
 
         var collections = await db.CollectionDocuments
-            .Where(cd => cd.DocumentId == q.DocumentId)
-            .Join(db.Collections, cd => cd.CollectionId, c => c.Id.Value, (_, c) => new CollectionRefDto(c.Id.Value, c.Name))
+            .Where(cd => cd.DocumentId == docId)
+            .Join(db.Collections, cd => cd.CollectionId, c => c.Id, (_, c) => new CollectionRefDto(c.Id.Value, c.Name))
             .ToListAsync(ct);
 
         return Result<DocumentDetailDto>.Success(new(

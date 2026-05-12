@@ -1,3 +1,4 @@
+using Cirth.Application.Common;
 using Cirth.Application.Common.Ports;
 using MediatR;
 
@@ -14,7 +15,8 @@ internal sealed class TenantScopingBehavior<TRequest, TResponse>(
 {
     public async Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken ct)
     {
-        dbContextAccessor.SetTenant(tenantProvider.CurrentTenantId);
+        if (request is not IBypassTenantScope)
+            dbContextAccessor.SetTenant(tenantProvider.CurrentTenantId);
         return await next();
     }
 }

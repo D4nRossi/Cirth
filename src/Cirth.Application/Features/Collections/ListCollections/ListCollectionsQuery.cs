@@ -10,19 +10,15 @@ public sealed record ListCollectionsQuery : IRequest<Result<IReadOnlyList<Collec
 public sealed record CollectionSummaryDto(Guid Id, string Name, string? Description, int DocumentCount, DateTimeOffset CreatedAt);
 
 internal sealed class ListCollectionsQueryHandler(
-    ITenantProvider tenantProvider,
     IQueryDbContext db) : IRequestHandler<ListCollectionsQuery, Result<IReadOnlyList<CollectionSummaryDto>>>
 {
     public async Task<Result<IReadOnlyList<CollectionSummaryDto>>> Handle(ListCollectionsQuery q, CancellationToken ct)
     {
-        var tenantId = tenantProvider.CurrentTenantId.Value;
-
         var collections = await db.Collections
-            .Where(c => c.TenantId.Value == tenantId)
             .OrderBy(c => c.Name)
             .Select(c => new CollectionSummaryDto(
                 c.Id.Value, c.Name, c.Description,
-                db.CollectionDocuments.Count(cd => cd.CollectionId == c.Id.Value),
+                db.CollectionDocuments.Count(cd => cd.CollectionId == c.Id),
                 c.CreatedAt))
             .ToListAsync(ct);
 

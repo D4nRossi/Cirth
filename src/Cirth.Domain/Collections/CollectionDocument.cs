@@ -1,7 +1,9 @@
+using Cirth.Shared;
+
 namespace Cirth.Domain.Collections;
 
 public sealed class CollectionDocument
 {
-    public System.Guid CollectionId { get; set; }
-    public System.Guid DocumentId { get; set; }
+    public CollectionId CollectionId { get; set; }
+    public DocumentId DocumentId { get; set; }
 }

@@ -70,6 +70,7 @@ try
 
     // SignalR
     builder.Services.AddSignalR();
+    builder.Services.AddSignalRNotifications();
 
     // Application + Infrastructure
     builder.Services.AddApplication();
@@ -107,10 +108,11 @@ try
     app.UseStaticFiles();
     app.UseRouting();
     app.UseAuthentication();
-    app.UseAuthorization();
 
-    // Provision user after auth
+    // Must run before UseAuthorization so role claims are present when policies are evaluated.
     app.UseMiddleware<UserProvisioningMiddleware>();
+
+    app.UseAuthorization();
 
     app.UseRateLimiter();
     app.UseAntiforgery();
@@ -122,7 +124,7 @@ try
     app.MapHealthChecks("/health");
     app.MapHealthChecks("/health/ready", new() { Predicate = h => h.Tags.Contains("ready") });
 
-    app.MapHub<Cirth.Web.Hubs.CirthHub>("/hubs/cirth");
+    app.MapHub<Cirth.Infrastructure.Auth.CirthHub>("/hubs/cirth");
     app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 
     // Sign-out endpoint
