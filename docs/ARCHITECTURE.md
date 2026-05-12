@@ -308,6 +308,71 @@ Código (em `Pages/Shared/_Layout.cshtml`):
 <body hx-headers='@hxHeaders'>
 ```
 
+### Indexação dos dados — como Cirth armazena chunks
+
+Cada documento parseado é dividido em chunks (800 tokens / overlap 100, via `TextChunker` do Semantic Kernel). Cada chunk é persistido em **dois lugares em paralelo**, identificado pelo mesmo `chunk_id` (UUID):
+
+#### 1. Postgres — `chunks` table (BM25 + metadata)
+
+```
+chunks (id, tenant_id, document_version_id, ordinal, content, token_count,
+        qdrant_point_id, is_current, created_at, updated_at,
+        content_tsv  ←  GENERATED ALWAYS AS (to_tsvector('portuguese', content)) STORED)
+```
+
+- `content_tsv` é coluna **GENERATED STORED** — o Postgres mantém atualizada automaticamente; código nunca escreve nela.
+- Configuração de FTS: dicionário `portuguese` (stemming pt-BR/pt-PT + stopwords). Trocar de dicionário exige rebuild da coluna (drop+add) — não é gratuito.
+- Índice: `ix_chunks_content_tsv` USING GIN — necessário pro `@@` ser rápido.
+- Query do `Bm25SearchService`:
+  ```sql
+  SELECT * FROM chunks
+  WHERE tenant_id = @tenant AND is_current = true
+    AND content_tsv @@ plainto_tsquery('portuguese', @q)
+  ORDER BY ts_rank_cd(content_tsv, plainto_tsquery('portuguese', @q)) DESC
+  LIMIT @k
+  ```
+- `qdrant_point_id` é o link cross-store: mesmo valor que o `id` do chunk (UUID), serve de point ID no Qdrant.
+
+#### 2. Qdrant — collections (vector search)
+
+Duas coleções, criadas on-demand pelo `EnsureCollectionAsync`:
+
+| Collection | Conteúdo | Distance | Dimensão |
+|---|---|---|---|
+| `cirth_chunks` | Embedding de cada chunk de documento | `Cosine` | igual ao modelo de embedding (1536 com `ada-002` / `3-small`) |
+| `cirth_saved_answers` | Embedding de perguntas salvas, pra match >= 0.85 antes de chamar LLM | `Cosine` | mesmo |
+
+Estrutura do point:
+
+```
+PointStruct {
+  Id: UUID = chunk_id (mesmo do Postgres)
+  Vectors: float[dim]
+  Payload: {
+    "tenant_id": "<uuid>",        // string — usado em filter de busca
+    "document_id": "<uuid>",
+    "document_title": "...",
+    "ordinal": "<int>",
+    "type": "chunk" | "saved_answer"
+    ... outros campos contextuais
+  }
+}
+```
+
+- Filtro de tenant em todas as queries: `Filter { Must: [{ Key: "tenant_id", Match: "<uuid>" }] }`. Multi-tenancy lógico funciona aqui sem coleções separadas por tenant — escala melhor.
+- Distance Cosine é a recomendada pra embeddings da OpenAI (vetores normalizados, equivalência prática ao dot product).
+
+#### 3. Busca híbrida — RRF (Reciprocal Rank Fusion)
+
+`HybridSearchQuery` em paralelo:
+1. BM25 top-50 (Postgres) → lista de chunk_ids
+2. Vector top-50 (Qdrant) → lista de chunk_ids com score
+3. RRF merge com `k=60`: `score(c) = Σ 1/(k + rank_i(c))` somando ambos rankings
+4. Cut top-K (default 8)
+5. `ts_headline` no Postgres pra gerar highlights
+
+Não tem reranker na V1 (ADR-003). Trocar de modelo de embedding **exige re-embedar todos os chunks**, daí o cuidado no toggle dinâmico (ver pendência de "LLM/Embedding via UI" — vai ter que rebuildar a collection se mudar dimensão).
+
 ### Azure AI Foundry — chat e embedding em endpoints diferentes
 A Foundry serve chat e embedding por hosts distintos com path/SDK incompatíveis:
 
