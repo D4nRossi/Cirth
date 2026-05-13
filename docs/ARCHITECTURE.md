@@ -434,25 +434,36 @@ A V1 começou em Blazor Server e foi migrada para Razor Pages + HTMX por dois mo
 
 **Base PageModel** (`Cirth.Web.Infrastructure.CirthPageModel`): herança comum com `Toast`, `SendAsync`, `HxRedirect`, `IsHtmx`. Toast funciona dual: em HTMX vai como header `HX-Trigger: {"toast":...}` (consumido pelo `cirth.js`); em navegação normal vai por `TempData` e o `_Layout` renderiza ao carregar.
 
-**Chat streaming via SSE**: `SendMessageCommand` retorna `IAsyncEnumerable<string>`. POST `/Chat/{id}?handler=Send` cacheia o `PendingChatStream` em `IMemoryCache` (chave = streamId), retorna HTML com user-bubble + assistant-bubble. A assistant-bubble tem **duas áreas de swap** sob o mesmo `<div hx-ext="sse" sse-connect="/Chat/Stream/{streamId}" sse-close="done">`:
+**Chat streaming via SSE**: `SendMessageCommand` retorna `IAsyncEnumerable<string>`. POST `/Chat/{id}?handler=Send` cacheia o `PendingChatStream` em `IMemoryCache` (chave = streamId), retorna HTML com user-bubble + assistant-bubble. A assistant-bubble tem **três áreas de swap** sob o mesmo `<div hx-ext="sse" sse-connect="/Chat/Stream/{streamId}" sse-close="done">`:
 
 ```html
 <div class="bubble assistant streaming" hx-ext="sse" sse-connect="..." sse-close="done">
   <div class="progress" sse-swap="progress" hx-swap="innerHTML">⏳ Aguardando...</div>
   <div class="content"  sse-swap="token"    hx-swap="beforeend"></div>
+  <div class="actions"  sse-swap="actions"  hx-swap="innerHTML"></div>
 </div>
 ```
 
 O GET `/Chat/Stream/{id}` emite eventos nomeados em ordem:
-1. `event: progress\ndata: 🔍 Analisando sua pergunta...` (replace innerHTML do `.progress`)
-2. dispatch do `SendMessageCommand`
-3. `event: progress\ndata: 📚 Buscando contexto no acervo...`
-4. `event: progress\ndata: 🤖 Gerando resposta...`
-5. `event: token\ndata: <html-encoded>` (beforeend no `.content`) — repetido por token
-6. `event: progress\ndata: ` (vazio, limpa o placeholder)
-7. `event: done\ndata: end` (HTMX fecha a EventSource)
+1. **Padding comment** `:` + 2KB de espaços + `\n\n` — força Kestrel a flushar o primeiro frame HTTP/2 imediatamente. Sem isso o primeiro evento `progress` fica em buffer por algumas centenas de ms (HTTP/2 espera 4KB de body antes de mandar frame), e o usuário não vê "Analisando".
+2. `event: progress\ndata: 🔍 Analisando sua pergunta...` (replace innerHTML do `.progress`)
+3. dispatch do `SendMessageCommand`
+4. `event: progress\ndata: 📚 Buscando contexto no acervo...` + 400ms delay (legibilidade)
+5. `event: progress\ndata: 🤖 Gerando resposta...` + 250ms delay
+6. `event: token\ndata: <html-encoded>` (beforeend no `.content`) — repetido por token
+7. `event: progress\ndata: ` (vazio, limpa o placeholder via `:empty { display: none }`)
+8. `event: actions\ndata: <button class="chat-save" hx-post=".../?handler=SaveLastAnswer">☆ Salvar resposta</button>` — preenche `.actions` com o botão de save
+9. `event: done\ndata: end` (HTMX fecha a EventSource)
 
-A separação `progress`/`token` em dois swap targets evita ter que reconstruir o conteúdo a cada token. O `Response.Body.FlushAsync` + `IHttpResponseBodyFeature.DisableBuffering` garantem que o Kestrel não acumule bytes.
+A separação `progress`/`token`/`actions` em três swap targets evita ter que reconstruir o conteúdo a cada token. `Response.Body.FlushAsync` + `IHttpResponseBodyFeature.DisableBuffering` + padding inicial garantem que o Kestrel não acumule bytes.
+
+**Salvar resposta**: o botão `☆ Salvar resposta` postado por SSE no fim do stream chama `OnPostSaveLastAnswerAsync(convId)`. O handler:
+1. `GetConversationQuery(convId)` retorna a lista de mensagens em ordem
+2. Walk reverso encontra a última assistant message + a user message imediatamente anterior
+3. Roda `CreateSavedAnswerCommand` com (convId, asstMsgId, userQuestion, asstAnswer, citedChunkIds)
+4. Toast de sucesso/erro via `HX-Trigger`
+
+Sem precisar de message-id no client — "última assistant message da conversa" é inambíguo porque o save só aparece DEPOIS do stream completar (e portanto da persistência no DB).
 
 **Logs**: o `_Layout` apenas exibe; o trabalho real fica em `Pages/Admin/Logs.cshtml` (admin only). Lê o arquivo Serilog mais recente (`cirth-web-*.log` ou `cirth-worker-*.log` baseado no dropdown), tail das últimas N linhas, filtra por nível mínimo + substring. HTMX `hx-trigger="every 5s"` auto-atualiza. Em produção/escala maior, trocar por um log store estruturado.
 

@@ -1,6 +1,7 @@
 using Cirth.Application.Features.Chat.CreateConversation;
 using Cirth.Application.Features.Chat.GetConversation;
 using Cirth.Application.Features.Chat.ListConversations;
+using Cirth.Application.Features.SavedAnswers.CreateSavedAnswer;
 using Cirth.Web.Infrastructure;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -65,9 +66,64 @@ public sealed class IndexModel(IMediator mediator, IMemoryCache cache) : CirthPa
                  hx-ext="sse" sse-connect="/Chat/Stream/{streamId}" sse-close="done">
               <div class="progress" sse-swap="progress" hx-swap="innerHTML"><em>⏳ Aguardando...</em></div>
               <div class="content" sse-swap="token" hx-swap="beforeend"></div>
+              <div class="actions" sse-swap="actions" hx-swap="innerHTML"></div>
             </div>
             """;
         return Content(userBubble + assistantBubble, "text/html");
+    }
+
+    /// <summary>
+    /// POST /Chat/{id}?handler=SaveLastAnswer — saves the most recent assistant message
+    /// in this conversation (along with its preceding user question) as a SavedAnswer.
+    /// The save button is rendered after the SSE stream completes — by then the message
+    /// is persisted, so "last assistant message in this conversation" is unambiguous.
+    /// </summary>
+    public async Task<IActionResult> OnPostSaveLastAnswerAsync(Guid id, CancellationToken ct)
+    {
+        var conv = await Mediator.Send(new GetConversationQuery(id), ct);
+        if (!conv.IsSuccess || conv.Value is null)
+        {
+            Toast("Conversa não encontrada.", ToastLevel.Error);
+            return new EmptyResult();
+        }
+
+        var messages = conv.Value.Messages;
+        // Messages are ordered ascending by CreatedAt — walk backwards to find the most
+        // recent assistant message and the user message immediately preceding it.
+        MessageDto? assistant = null;
+        MessageDto? userPrev = null;
+        for (var i = messages.Count - 1; i >= 0; i--)
+        {
+            if (assistant is null && string.Equals(messages[i].Role, "Assistant", StringComparison.OrdinalIgnoreCase))
+            {
+                assistant = messages[i];
+            }
+            else if (assistant is not null && string.Equals(messages[i].Role, "User", StringComparison.OrdinalIgnoreCase))
+            {
+                userPrev = messages[i];
+                break;
+            }
+        }
+
+        if (assistant is null || userPrev is null)
+        {
+            Toast("Nenhuma resposta para salvar ainda.", ToastLevel.Warning);
+            return new EmptyResult();
+        }
+
+        var save = await Mediator.Send(new CreateSavedAnswerCommand(
+            id,
+            assistant.Id,
+            userPrev.Content,
+            assistant.Content,
+            assistant.CitedChunkIds ?? []), ct);
+
+        if (save.IsSuccess)
+            Toast("Resposta salva — acesse em /Saved.", ToastLevel.Success);
+        else
+            Toast(save.Error!.Message, ToastLevel.Error);
+
+        return new EmptyResult();
     }
 
     internal static string StreamCacheKey(string streamId) => $"chat-stream:{streamId}";

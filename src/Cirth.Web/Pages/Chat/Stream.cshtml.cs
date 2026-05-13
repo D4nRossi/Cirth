@@ -41,6 +41,13 @@ public sealed class StreamModel(
             await Response.Body.FlushAsync(ct);
         }
 
+        // SSE padding comment: forces the HTTP/2 layer to flush the response headers and a
+        // first frame immediately. Without it, Kestrel waits for ~4KB of body before sending
+        // anything over HTTP/2, hiding our first progress event for several hundred ms.
+        // The `:` prefix makes it a comment in the SSE format — clients ignore it.
+        await Response.WriteAsync(":" + new string(' ', 2048) + "\n\n", ct);
+        await Response.Body.FlushAsync(ct);
+
         logger.LogInformation("Chat stream {StreamId} starting for conv {Conv}", streamId, pending.ConversationId);
 
         await WriteEvent("progress", "<em>🔍 Analisando sua pergunta...</em>");
@@ -50,7 +57,8 @@ public sealed class StreamModel(
         {
             // The SendMessageCommand bundles: saved-answer check + hybrid search + LLM call.
             // We can't easily emit progress between those sub-stages without refactoring the
-            // command, so we fire two cosmetic progress messages around it.
+            // command, so we fire cosmetic progress messages around it with deliberate
+            // pacing so each one is on screen long enough for the user to read.
             result = await mediator.Send(new SendMessageCommand(pending.ConversationId, pending.Content), ct);
         }
         catch (Exception ex)
@@ -70,10 +78,9 @@ public sealed class StreamModel(
         }
 
         await WriteEvent("progress", "<em>📚 Buscando contexto no acervo...</em>");
-        // Tiny pacing pause so the UI shows the progress for at least a frame.
-        // Doesn't affect total time noticeably and ensures both progress events render.
-        await Task.Delay(120, ct);
+        await Task.Delay(400, ct);
         await WriteEvent("progress", "<em>🤖 Gerando resposta...</em>");
+        await Task.Delay(250, ct);
 
         try
         {
@@ -88,8 +95,19 @@ public sealed class StreamModel(
             await WriteEvent("token", $"<em>Erro de streaming: {System.Net.WebUtility.HtmlEncode(ex.Message)}</em>");
         }
 
-        // Clear the progress placeholder when generation finishes.
+        // Clear the progress placeholder and append a "Save answer" affordance OOB-style.
+        // The save button is appended to the bubble as a sibling of `.content` via a
+        // dedicated SSE swap target on the bubble itself (sse-swap="actions").
         await WriteEvent("progress", "");
+        var saveBtn = $"""
+            <button type="button" class="btn btn-text btn-sm chat-save"
+                    hx-post="/Chat/{pending.ConversationId}?handler=SaveLastAnswer"
+                    hx-swap="none"
+                    title="Salvar resposta para consultar depois">
+              ☆ Salvar resposta
+            </button>
+            """;
+        await WriteEvent("actions", saveBtn);
         await WriteEvent("done", "end");
 
         logger.LogInformation("Chat stream {StreamId} completed", streamId);
