@@ -79,9 +79,11 @@ tests/
 
 ### EF Core — pegadinhas que já mordemos
 
+- **Nunca compare `.Value` de typed-ID com Guid bruto dentro de LINQ**. EF Core 10 não traduz `m.ConversationId.Value == cmd.ConversationId` mesmo com `HasConversion` configurado. Construa o typed-ID localmente e compare direto: `var convId = new ConversationId(cmd.ConversationId); .Where(m => m.ConversationId == convId)`. Padrão usado em todas as outras queries do projeto (`HybridSearchQuery`, `GetDocumentQuery`, etc.).
 - **`TakeLast(n)` não traduz pra SQL**. Use `OrderByDescending(...).Take(n).ToListAsync()` e dê `.Reverse()` in-memory depois.
 - **`enum.ToString().ToLower()` dentro de `.Select(...)` não traduz** mesmo quando a coluna está mapeada com `HasConversion<string>()`. Projete pra anonymous type primeiro, faça o `ToString().ToLowerInvariant()` client-side.
 - **`SqlQueryRaw<string>` exige coluna chamada `"Value"`** no resultado — aliase explícito (`SELECT version() AS "Value"`).
+- Regra geral: typed-IDs (`ConversationId`, `DocumentId`, etc.) **só são "transparent"** quando comparados como objetos completos. Qualquer projeção/predicate que toque `.Value` é forçada a evaluation client-side, e EF Core retorna erro em vez de degradar silenciosamente.
 
 ## Convenções de UI (Razor Pages + HTMX)
 

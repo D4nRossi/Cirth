@@ -82,12 +82,13 @@ internal sealed class SendMessageCommandHandler(
         var systemPrompt = BuildSystemPrompt(hits);
 
         // Conversation history (sliding window).
-        // EF Core can't translate `TakeLast` to SQL — fetch the most recent N descending
-        // and reverse in memory. `.ToString().ToLowerInvariant()` on the enum also doesn't
-        // translate cleanly inside a projection, so we project to an anonymous shape on
-        // the server and finish the conversion client-side.
+        // EF Core 10 doesn't translate `m.ConversationId.Value == <guid>` even with HasConversion
+        // configured — compare typed-ID to typed-ID instead. Also can't translate `TakeLast`,
+        // so we OrderByDescending+Take and reverse in memory. The enum-to-string conversion
+        // for Role is also done client-side to stay safe.
+        var convId = new ConversationId(cmd.ConversationId);
         var rawHistory = await db.Messages
-            .Where(m => m.ConversationId.Value == cmd.ConversationId)
+            .Where(m => m.ConversationId == convId)
             .OrderByDescending(m => m.CreatedAt)
             .Take(HistoryWindowSize)
             .Select(m => new { m.Role, m.Content })
