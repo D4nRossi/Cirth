@@ -576,11 +576,19 @@ pre { padding: var(--space-3); overflow-x: auto; }
     border: 1px solid var(--border-default);
     color: var(--text-primary);
 }
-.bubble.streaming::after {
+.bubble.streaming .content::after {
     content: "▍";
     color: var(--gold-primary);
     animation: blink 800ms infinite;
+    margin-left: 2px;
 }
+.bubble .progress {
+    color: var(--gold-muted);
+    font-size: 0.85rem;
+    margin-bottom: var(--space-2);
+}
+.bubble .progress:empty { display: none; }
+.bubble .progress .err { color: var(--rune-red-soft); }
 @keyframes blink { 50% { opacity: 0; } }
 
 /* ----- Misc ----- */

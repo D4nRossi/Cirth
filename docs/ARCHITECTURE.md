@@ -434,7 +434,27 @@ A V1 começou em Blazor Server e foi migrada para Razor Pages + HTMX por dois mo
 
 **Base PageModel** (`Cirth.Web.Infrastructure.CirthPageModel`): herança comum com `Toast`, `SendAsync`, `HxRedirect`, `IsHtmx`. Toast funciona dual: em HTMX vai como header `HX-Trigger: {"toast":...}` (consumido pelo `cirth.js`); em navegação normal vai por `TempData` e o `_Layout` renderiza ao carregar.
 
-**Chat streaming via SSE**: `SendMessageCommand` retorna `IAsyncEnumerable<string>`. POST `/Chat/{id}?handler=Send` cacheia o `PendingChatStream` em `IMemoryCache` (chave = streamId), retorna HTML com user-bubble + assistant-bubble vazia configurada como `<div hx-ext="sse" sse-connect="/Chat/Stream/{streamId}" sse-swap="token" hx-swap="beforeend" sse-close="done">`. O GET `/Chat/Stream/{id}` lê do cache, roda o command, emite eventos `token` (escapados HTML) e fecha com `done`. Cliente HTMX appenda cada token na bubble.
+**Chat streaming via SSE**: `SendMessageCommand` retorna `IAsyncEnumerable<string>`. POST `/Chat/{id}?handler=Send` cacheia o `PendingChatStream` em `IMemoryCache` (chave = streamId), retorna HTML com user-bubble + assistant-bubble. A assistant-bubble tem **duas áreas de swap** sob o mesmo `<div hx-ext="sse" sse-connect="/Chat/Stream/{streamId}" sse-close="done">`:
+
+```html
+<div class="bubble assistant streaming" hx-ext="sse" sse-connect="..." sse-close="done">
+  <div class="progress" sse-swap="progress" hx-swap="innerHTML">⏳ Aguardando...</div>
+  <div class="content"  sse-swap="token"    hx-swap="beforeend"></div>
+</div>
+```
+
+O GET `/Chat/Stream/{id}` emite eventos nomeados em ordem:
+1. `event: progress\ndata: 🔍 Analisando sua pergunta...` (replace innerHTML do `.progress`)
+2. dispatch do `SendMessageCommand`
+3. `event: progress\ndata: 📚 Buscando contexto no acervo...`
+4. `event: progress\ndata: 🤖 Gerando resposta...`
+5. `event: token\ndata: <html-encoded>` (beforeend no `.content`) — repetido por token
+6. `event: progress\ndata: ` (vazio, limpa o placeholder)
+7. `event: done\ndata: end` (HTMX fecha a EventSource)
+
+A separação `progress`/`token` em dois swap targets evita ter que reconstruir o conteúdo a cada token. O `Response.Body.FlushAsync` + `IHttpResponseBodyFeature.DisableBuffering` garantem que o Kestrel não acumule bytes.
+
+**Logs**: o `_Layout` apenas exibe; o trabalho real fica em `Pages/Admin/Logs.cshtml` (admin only). Lê o arquivo Serilog mais recente (`cirth-web-*.log` ou `cirth-worker-*.log` baseado no dropdown), tail das últimas N linhas, filtra por nível mínimo + substring. HTMX `hx-trigger="every 5s"` auto-atualiza. Em produção/escala maior, trocar por um log store estruturado.
 
 **Auth**: `FallbackPolicy = DefaultPolicy` exige login para tudo, exceto rotas marcadas com `AllowAnonymousToPage("/Index")`, `AllowAnonymousToFolder("/Account")`, e `MapHealthChecks/MapMetrics().AllowAnonymous()`.
 

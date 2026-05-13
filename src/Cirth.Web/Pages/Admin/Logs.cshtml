@@ -1,0 +1,45 @@
+@page "/Admin/Logs"
+@model Cirth.Web.Pages.Admin.LogsModel
+@{
+    ViewData["Title"] = "Logs — Cirth";
+}
+
+<div class="flex items-center justify-between mb-4">
+    <h1 style="margin:0">Logs</h1>
+    <a href="/Admin" class="btn btn-text">← Admin</a>
+</div>
+
+<form class="card mb-4" hx-get="/Admin/Logs?handler=Tail"
+      hx-target="#log-view" hx-swap="outerHTML"
+      hx-trigger="change, submit, every 5s">
+    <div class="flex gap-3 items-end flex-wrap">
+        <div class="form-field" style="margin-bottom:0">
+            <label>Origem</label>
+            <select name="source" class="select" style="width:140px">
+                <option value="web" selected="@(Model.Source == "web")">Web</option>
+                <option value="worker" selected="@(Model.Source == "worker")">Worker</option>
+            </select>
+        </div>
+        <div class="form-field" style="margin-bottom:0">
+            <label>Nível mínimo</label>
+            <select name="level" class="select" style="width:140px">
+                <option value="" selected="@(string.IsNullOrEmpty(Model.Level))">Todos</option>
+                <option value="INF" selected="@(Model.Level == "INF")">Information</option>
+                <option value="WRN" selected="@(Model.Level == "WRN")">Warning</option>
+                <option value="ERR" selected="@(Model.Level == "ERR")">Error</option>
+                <option value="FTL" selected="@(Model.Level == "FTL")">Fatal</option>
+            </select>
+        </div>
+        <div class="form-field grow" style="margin-bottom:0">
+            <label>Filtro (substring)</label>
+            <input type="search" name="q" value="@Model.Query" class="input" placeholder="Ex.: chat, Postgres, NullRef..." />
+        </div>
+        <div class="form-field" style="margin-bottom:0">
+            <label>Linhas</label>
+            <input type="number" name="lines" value="@Model.Lines" class="input" style="width:90px" min="50" max="2000" step="50" />
+        </div>
+        <button type="submit" class="btn btn-outline">↻ Atualizar agora</button>
+    </div>
+</form>
+
+<partial name="_LogView" model="Model" />

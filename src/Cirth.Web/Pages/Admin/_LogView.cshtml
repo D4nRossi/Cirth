@@ -1,0 +1,37 @@
+@model Cirth.Web.Pages.Admin.LogsModel
+
+<div id="log-view" class="card-elev" style="font-family:var(--font-mono); font-size:0.85rem; line-height:1.4; max-height:65vh; overflow:auto;">
+    @if (Model.LogFile is null)
+    {
+        <p class="text-secondary">
+            Nenhum arquivo de log encontrado em <code>@Model.ExpectedPath</code>.
+            Inicie o serviço pelo menos uma vez pra criar.
+        </p>
+    }
+    else
+    {
+        <div class="flex items-center justify-between mb-2" style="position:sticky; top:0; background:var(--bg-elevated); padding-bottom:6px; border-bottom:1px solid var(--border-default)">
+            <span class="text-caption">@Model.LogFile · @Model.Entries.Count linhas · @Model.FileSize</span>
+            <span class="text-caption">Auto-refresh a cada 5s</span>
+        </div>
+        @foreach (var e in Model.Entries)
+        {
+            var lvlClass = e.Level switch
+            {
+                "ERR" or "FTL" => "log-err",
+                "WRN" => "log-wrn",
+                "DBG" or "VRB" => "log-dbg",
+                _ => "log-inf"
+            };
+            <div class="log-line @lvlClass">@e.Raw</div>
+        }
+    }
+</div>
+
+<style>
+    .log-line { white-space:pre-wrap; word-break:break-word; padding:1px 4px; border-radius:2px; }
+    .log-err { color:#FF8A65; background:rgba(166,63,26,.08); }
+    .log-wrn { color:var(--amber-warning); }
+    .log-inf { color:var(--text-primary); }
+    .log-dbg { color:var(--text-muted); }
+</style>

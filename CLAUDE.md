@@ -193,10 +193,21 @@ Configuração (appsettings.json + user-secrets):
 
 ## Observabilidade V1
 
-- Serilog estruturado: console (dev) + arquivo rolling (prod).
+- Serilog estruturado em **Console + File rolling diário** — ambos os sinks definidos no `appsettings.json` de cada host (`Cirth.Web`, `Cirth.Worker`). **Não tente** só com bootstrap logger no Program.cs: `cfg.ReadFrom.Configuration` zera os sinks se a config não tiver `WriteTo` (foi bug real, ficou sem logs no `make watch`).
+- Pacotes necessários em cada projeto que loga: `Serilog.AspNetCore`, `Serilog.Settings.Configuration`, `Serilog.Enrichers.Environment`, `Serilog.Enrichers.Thread`.
+- Arquivos em `src/Cirth.Web/logs/cirth-web-<data>.log` e `src/Cirth.Worker/logs/cirth-worker-<data>.log`.
 - Cada request tem `CorrelationId` propagado por middleware.
 - Health checks em `/health` e `/health/ready` (checa Postgres, Qdrant, Redis, MinIO).
 - Métricas Prometheus expostas em `/metrics` (já preparado, scraper opcional na V1).
+
+### Como ler logs em dev
+
+| Cenário | Comando |
+|---|---|
+| Console em tempo real | `make watch` (Web) ou `make worker` (Worker) |
+| Tail do arquivo de hoje | `make logs-web` ou `make logs-worker` |
+| Browser, com filtro por nível e texto | navega `/Admin/Logs` (admin only) — auto-refresh a cada 5s, dropdown de fonte (web/worker) e nível mínimo (INF/WRN/ERR/FTL) |
+| Linha de comando avulsa | `tail -F src/Cirth.Web/logs/cirth-web-*.log` |
 
 ## Quando ficar em dúvida
 

@@ -44,6 +44,12 @@ public sealed class IndexModel(IMediator mediator, IMemoryCache cache) : CirthPa
     /// <summary>
     /// POST /Chat/{id}?handler=Send — stashes the request and returns HTML containing
     /// the user bubble + an assistant bubble that connects to /Chat/Stream/{streamId}.
+    ///
+    /// Bubble shape: two SSE swap targets in one element:
+    ///   - .progress (innerHTML swap on event=progress) — pre-stage status messages
+    ///   - .content  (beforeend swap on event=token)    — actual LLM tokens
+    /// When the server emits event=done, the SSE connection closes and JS strips the
+    /// "streaming" class + clears the progress placeholder.
     /// </summary>
     public IActionResult OnPostSend(Guid id, string content)
     {
@@ -56,9 +62,10 @@ public sealed class IndexModel(IMediator mediator, IMemoryCache cache) : CirthPa
         var userBubble = $"<div class=\"bubble user\">{System.Net.WebUtility.HtmlEncode(content)}</div>";
         var assistantBubble = $"""
             <div class="bubble assistant streaming" id="asst-{streamId}"
-                 hx-ext="sse" sse-connect="/Chat/Stream/{streamId}"
-                 sse-swap="token" hx-swap="beforeend"
-                 sse-close="done"></div>
+                 hx-ext="sse" sse-connect="/Chat/Stream/{streamId}" sse-close="done">
+              <div class="progress" sse-swap="progress" hx-swap="innerHTML"><em>⏳ Aguardando...</em></div>
+              <div class="content" sse-swap="token" hx-swap="beforeend"></div>
+            </div>
             """;
         return Content(userBubble + assistantBubble, "text/html");
     }
