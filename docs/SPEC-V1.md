@@ -155,7 +155,7 @@ Detalhes e diagramas C4 em [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 Resumo:
 - **Camada de borda**: NGINX + ModSecurity expõe HTTPS, faz reverse proxy para `Cirth.Web` e `Cirth.Mcp`.
-- **Camada de aplicação**: Blazor Server (`Cirth.Web`) e MCP Server (`Cirth.Mcp`), ambos consumindo a mesma `Cirth.Application`.
+- **Camada de aplicação**: Razor Pages + HTMX (`Cirth.Web`) e MCP Server (`Cirth.Mcp`), ambos consumindo a mesma `Cirth.Application`. Originalmente desenhada em Blazor Server, migrada pra Razor Pages em maio/2026 por instabilidade do circuito SignalR — ver `docs/ARCHITECTURE.md`.
 - **Camada de domínio**: `Cirth.Domain` puro, sem dependências de infra.
 - **Camada de infra**: `Cirth.Infrastructure` implementa portas (EF Core, Qdrant client, MinIO client, LLM adapter).
 - **Camada de processamento async**: `Cirth.Worker` consome fila de jobs (tabela `Jobs` no Postgres) e processa ingestão.
@@ -428,7 +428,7 @@ Detalhes em [`DESIGN-SYSTEM.md`](DESIGN-SYSTEM.md). Resumo:
 - Tema dark fixo.
 - Paleta pergaminho-escuro com ouro de selo e acentos vermelho-runa.
 - Tipografia Cinzel (display) + Inter (body) + JetBrains Mono (code).
-- MudBlazor com tema customizado Cirth.
+- CSS custom em `wwwroot/css/cirth.css` (sem framework UI — design tokens em `:root`, classes utilitárias). Antes era MudBlazor — descontinuado junto com a migração pra Razor Pages.
 - Logo: SVG com runa Cirth (estilo do alfabeto certhas) em ouro sobre fundo escuro.
 
 ## 15. Roadmap

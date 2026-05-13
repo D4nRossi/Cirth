@@ -47,7 +47,7 @@ rectangle "Cirth Platform" {
   }
   
   Container_Boundary(app, "Application") {
-    rectangle "Cirth.Web\nBlazor Server\n.NET 10" as Web
+    rectangle "Cirth.Web\nRazor Pages + HTMX\n.NET 10" as Web
     rectangle "Cirth.Mcp\nMCP Server\n.NET 10" as Mcp
     rectangle "Cirth.Worker\nBackgroundService\n.NET 10" as Worker
   }
@@ -260,16 +260,17 @@ Mcp --> Agent : MCP response
 Consulte `docs/adr/` para o histórico completo. Resumo:
 
 - **ADR-001**: Modular monolith em Clean Architecture, não microsserviços.
-- **ADR-002**: Blazor Server como frontend único, sem SPA externa.
+- **ADR-002**: Blazor Server como frontend único — **revertido pelo ADR-007**.
 - **ADR-003**: Busca híbrida BM25 + vetorial via RRF, sem reranker na V1.
 - **ADR-004**: MinIO como object storage S3-compatible desde o início.
 - **ADR-005**: Multi-tenant lógico via TenantId + global query filter desde a V1.
 - **ADR-006**: MCP server reusa Application handlers (mesma lógica que UI).
+- **ADR-007**: Razor Pages + HTMX substitui Blazor Server por instabilidade do circuito SignalR.
 
 ## 9. Notas de implementação relevantes
 
-### Upload de arquivos (Blazor Server)
-`IBrowserFile.OpenReadStream()` retorna um stream não-seekable. O `UploadDocumentCommandHandler` copia o conteúdo para um `MemoryStream` antes de calcular o hash SHA-256 e enviar ao MinIO. Limite de 50 MB por upload.
+### Upload de arquivos
+A página `Pages/Documents/Upload.cshtml` recebe via `IFormFile`. O stream retornado pelo modelo de form binding é não-seekable, então o `UploadDocumentCommandHandler` copia pra um `MemoryStream` antes de calcular SHA-256 + enviar ao MinIO. Limite de 50 MB por upload (também enforced no validator do Application).
 
 `MinioObjectStorage` usa `content.CanSeek ? content.Length : -1` em `.WithObjectSize()` — passar `-1` instrui o SDK a usar transferência em chunks, evitando `NotSupportedException` com streams não-seekable.
 

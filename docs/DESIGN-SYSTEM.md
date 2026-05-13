@@ -214,67 +214,85 @@ Para separar seções importantes em uma página de detalhe de documento ou em u
 }
 ```
 
-## 6. Tema MudBlazor
+## 6. Tema CSS
 
-Em `Cirth.Web/Theme/CirthTheme.cs`:
+> **Histórico**: a V1 começou em Blazor Server + MudBlazor com tema configurado em C# (`CirthTheme.cs`). Migrado pra Razor Pages + HTMX em maio/2026 com CSS custom direto — sem framework UI.
 
-```csharp
-public static class CirthTheme
-{
-    public static MudTheme Build() => new()
-    {
-        PaletteDark = new PaletteDark
-        {
-            Black = "#0F0D0A",
-            Background = "#0F0D0A",
-            Surface = "#1A1410",
-            DrawerBackground = "#1A1410",
-            DrawerText = "#E8DCC4",
-            AppbarBackground = "#0F0D0A",
-            AppbarText = "#E8DCC4",
-            Primary = "#C9A961",
-            PrimaryContrastText = "#1A1410",
-            Secondary = "#8C7140",
-            Success = "#5D7B3F",
-            Error = "#8B2500",
-            Warning = "#B8860B",
-            Info = "#3D5A6C",
-            TextPrimary = "#E8DCC4",
-            TextSecondary = "#A89B7D",
-            TextDisabled = "#6B604C",
-            LinesDefault = "#3A2F23",
-            LinesInputs = "#5A4838",
-            TableLines = "#2A2218",
-            TableHover = "#241C16",
-            ActionDefault = "#C9A961",
-            ActionDisabled = "#6B604C"
-        },
-        Typography = new Typography
-        {
-            Default = new DefaultTypography
-            {
-                FontFamily = new[] { "Inter", "system-ui", "sans-serif" },
-                FontSize = "1rem",
-                FontWeight = "400",
-                LineHeight = "1.5"
-            },
-            H1 = new H1Typography { FontFamily = new[] { "Cinzel", "serif" }, FontSize = "2.5rem", FontWeight = "600" },
-            H2 = new H2Typography { FontFamily = new[] { "Cinzel", "serif" }, FontSize = "2rem", FontWeight = "500" },
-            H3 = new H3Typography { FontFamily = new[] { "Cinzel", "serif" }, FontSize = "1.5rem", FontWeight = "500" },
-            Button = new ButtonTypography { FontFamily = new[] { "Inter", "sans-serif" }, FontWeight = "600", TextTransform = "none" }
-        },
-        LayoutProperties = new LayoutProperties
-        {
-            DefaultBorderRadius = "4px",
-            DrawerWidthLeft = "280px"
-        }
-    };
+Todos os tokens vivem em `src/Cirth.Web/wwwroot/css/cirth.css` (raiz `:root { ... }`), e o resto do arquivo são componentes utilitários (`.btn`, `.card`, `.chip`, `.grid-N`, `.flex`, `.bubble`, etc.) referenciando esses tokens.
+
+```css
+:root {
+    --bg-deep: #0F0D0A;
+    --bg-surface: #1A1410;
+    --bg-elevated: #241C16;
+    --bg-overlay: #2E2519;
+
+    --gold-primary: #C9A961;
+    --gold-accent:  #D4AF37;
+    --gold-muted:   #8C7140;
+
+    --rune-red:        #8B2500;
+    --moss-green:      #5D7B3F;
+    --moss-green-soft: #7A9A5C;
+    --ink-blue:        #3D5A6C;
+    --amber-warning:   #B8860B;
+
+    --text-primary:   #E8DCC4;
+    --text-secondary: #A89B7D;
+    --text-muted:     #6B604C;
+    --text-on-gold:   #1A1410;
+
+    --border-faint:   #2A2218;
+    --border-default: #3A2F23;
+    --border-strong:  #5A4838;
+    --border-gold:    #8C7140;
+
+    --font-display: 'Cinzel', 'Trajan Pro', serif;
+    --font-body:    'Inter', system-ui, -apple-system, sans-serif;
+    --font-mono:    'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
+
+    --radius-sm: 2px;
+    --radius-md: 4px;
+    --radius-lg: 8px;
+
+    --space-1: 4px;  --space-2: 8px;  --space-3: 12px;
+    --space-4: 16px; --space-6: 24px; --space-8: 32px;
+    --space-12: 48px; --space-16: 64px;
 }
 ```
 
+Para mudar a paleta inteira em runtime no futuro (temas alternativos), troque um stylesheet alternativo que sobrescreve só os tokens — todas as classes utilitárias herdam automaticamente.
+
+<details>
+<summary>Mapeamento histórico — tokens antigos do MudBlazor (referência)</summary>
+
+```csharp
+// CirthTheme.cs (removido em maio/2026, mantido aqui só pra rastreabilidade)
+PaletteDark = new PaletteDark
+{
+    Black = "#0F0D0A",
+    Background = "#0F0D0A",
+    Surface = "#1A1410",
+    Primary = "#C9A961",
+    Secondary = "#8C7140",
+    Success = "#5D7B3F",
+    Error = "#8B2500",
+    Warning = "#B8860B",
+    Info = "#3D5A6C",
+    TextPrimary = "#E8DCC4",
+    TextSecondary = "#A89B7D",
+    TextDisabled = "#6B604C",
+    LinesDefault = "#3A2F23",
+    LinesInputs = "#5A4838"
+}
+```
+
+</details>
+
+
 ## 7. Ícones
 
-Biblioteca: **Lucide** (via `Blazored.LucideIcons` ou SVGs inline). Stroke-width padrão `1.5`. Tamanho padrão `20px`. Não usar emojis em UI core (apenas em conteúdo do usuário).
+Glifos Unicode contidos no próprio HTML servem como ícones (`⌂ ▤ ✎ ⌕ ☆ ▦ ⬢ ⚙` na drawer, `📜` em logs, `↑ ↻ ☆` em ações). Sem dependência externa de biblioteca de ícones. Quando precisarmos de algo mais detalhado, SVG inline com `currentColor` no `fill` — herda a cor do contexto.
 
 Ícones-chave do produto:
 - Documento: `file-text`

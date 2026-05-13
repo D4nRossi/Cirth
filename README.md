@@ -10,12 +10,13 @@ Um espaço único onde toda a sua base de conhecimento (PDFs técnicos, artigos,
 
 ## Stack
 
-- **Backend**: .NET 10, ASP.NET Core, Blazor Server, MudBlazor
-- **IA**: Microsoft.Extensions.AI + Semantic Kernel, Azure AI Foundry (GPT-4.1, GPT-4.1-mini), embeddings `text-embedding-3-small`
-- **Persistência**: PostgreSQL 16, Qdrant, Redis 7, MinIO
+- **Backend**: .NET 10, ASP.NET Core, **Razor Pages + HTMX** (server-rendered; CSS custom em `wwwroot/css/cirth.css` sem framework UI)
+- **IA**: Microsoft.Extensions.AI + Semantic Kernel, **Azure AI Foundry com endpoints duais** — Chat via OpenAI SDK puro contra `*.openai.azure.com/openai/v1` (Responses API) usando `gpt-4.1`/`gpt-4.1-mini`; Embeddings via Azure.AI.OpenAI contra `*.cognitiveservices.azure.com` usando `text-embedding-ada-002` (1536 dim)
+- **Persistência**: PostgreSQL 16 (com `tsvector` GENERATED + GIN para BM25), Qdrant (Cosine, multi-tenant via filter por `tenant_id`), Redis 7, MinIO
 - **Infra**: Docker Compose, NGINX + ModSecurity (OWASP CRS)
 - **Auth**: Entra ID OIDC, single-tenant
 - **MCP**: servidor MCP oficial para consulta via Claude Desktop e Claude Code
+- **Jobs**: fila própria em Postgres (sem mensageria); `StuckJobRecoveryService` recupera jobs órfãos a cada 2min
 
 ## Arquitetura em uma frase
 
@@ -50,13 +51,34 @@ Detalhes completos em [`docs/DESIGN-SYSTEM.md`](docs/DESIGN-SYSTEM.md).
 - **V1.5** — Mídia (vídeo e áudio com STT batch via Azure AI Speech)
 - **V2** — API REST pública versionada, observabilidade full (OTel + LGTM), agentes, semantic chunking avançado
 
-## Quick start
+## Quick start (dev local)
 
 ```bash
-cp .env.example .env
-# edite .env com suas credenciais Azure / Entra ID
+# 1. Infra (Postgres, Redis, Qdrant, MinIO)
+docker compose -f docker-compose.infra.yml up -d
 
-docker compose up -d
+# 2. Secrets do dev (uma vez)
+dotnet user-secrets set AzureAi:Chat:Endpoint      "https://<resource>.openai.azure.com/openai/v1"        --project src/Cirth.Web
+dotnet user-secrets set AzureAi:Chat:ApiKey        "<chave>"                                              --project src/Cirth.Web
+dotnet user-secrets set AzureAi:Embedding:Endpoint "https://<resource>.cognitiveservices.azure.com/"      --project src/Cirth.Web
+dotnet user-secrets set AzureAi:Embedding:ApiKey   "<chave>"                                              --project src/Cirth.Web
+dotnet user-secrets set EntraId:ClientId           "<client-id>"                                          --project src/Cirth.Web
+dotnet user-secrets set EntraId:ClientSecret       "<client-secret>"                                      --project src/Cirth.Web
+
+# 3. Migrations + run
+make db-update
+make watch                                # https://localhost:5001 (Web com hot reload)
+make worker                               # Worker (em outro terminal)
+make logs-web                             # tail dos logs (em outro terminal)
+```
+
+Detalhes completos (incluindo App Registration no Entra ID e checklist de testes manuais) em [`RUN.md`](RUN.md).
+
+### Stack inteira em Docker
+
+```bash
+cp .env.example .env && chmod 600 .env    # ajustar com endpoints e chaves
+docker compose up -d                       # Web + Worker + Mcp + Nginx + infra
 ```
 
 Acesse `https://cirth.local` (após adicionar no `/etc/hosts`).

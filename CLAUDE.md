@@ -4,7 +4,7 @@ Este arquivo é a constituição operacional do Cirth para o Claude Code. Leia a
 
 ## Projeto
 
-**Cirth** é uma plataforma pessoal de Knowledge Management com chat RAG. Stack 100% .NET 10, Blazor Server, modular monolith em Clean Architecture, containerizada via Docker Compose. Multi-tenant lógico desde V1 (cada usuário é um tenant). Pode virar SaaS para amigos depois.
+**Cirth** é uma plataforma pessoal de Knowledge Management com chat RAG. Stack 100% .NET 10, **Razor Pages + HTMX** (server-rendered), modular monolith em Clean Architecture, containerizada via Docker Compose. Multi-tenant lógico desde V1 (cada usuário é um tenant). Pode virar SaaS para amigos depois.
 
 O nome vem de **Cirth**, o sistema rúnico dos Anões na Terra-média. A identidade visual é arquivo de Gondor / Bodleian Library: tema escuro, ouro pergaminho, tipografia Cinzel + Inter.
 
@@ -38,7 +38,7 @@ src/
   Cirth.Domain/          # Entidades, value objects, domain events. Zero deps externas.
   Cirth.Application/     # Use cases (MediatR handlers), DTOs, interfaces de portas. Deps: Domain + MediatR.
   Cirth.Infrastructure/  # EF Core, Qdrant client, MinIO client, LLM adapters, Identity. Deps: Application.
-  Cirth.Web/             # Blazor Server + MudBlazor + páginas + auth UI. Deps: Application + Infrastructure.
+  Cirth.Web/             # Razor Pages + HTMX + CSS custom + auth UI. Deps: Application + Infrastructure.
   Cirth.Mcp/             # MCP server (stdio + HTTP). Reusa Application handlers. Deps: Application + Infrastructure.
   Cirth.Worker/          # BackgroundService de ingestão, embeddings, jobs. Deps: Application + Infrastructure.
   Cirth.Shared/          # Cross-cutting (Result<T>, exceptions, primitives).
