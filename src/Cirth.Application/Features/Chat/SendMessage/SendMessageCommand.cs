@@ -81,13 +81,22 @@ internal sealed class SendMessageCommandHandler(
         // Build prompt
         var systemPrompt = BuildSystemPrompt(hits);
 
-        // Conversation history (sliding window)
-        var history = await db.Messages
+        // Conversation history (sliding window).
+        // EF Core can't translate `TakeLast` to SQL — fetch the most recent N descending
+        // and reverse in memory. `.ToString().ToLowerInvariant()` on the enum also doesn't
+        // translate cleanly inside a projection, so we project to an anonymous shape on
+        // the server and finish the conversion client-side.
+        var rawHistory = await db.Messages
             .Where(m => m.ConversationId.Value == cmd.ConversationId)
-            .OrderBy(m => m.CreatedAt)
-            .TakeLast(HistoryWindowSize)
-            .Select(m => new ChatMessageDto(m.Role.ToString().ToLower(), m.Content))
+            .OrderByDescending(m => m.CreatedAt)
+            .Take(HistoryWindowSize)
+            .Select(m => new { m.Role, m.Content })
             .ToListAsync(ct);
+
+        rawHistory.Reverse();
+        var history = rawHistory
+            .Select(m => new ChatMessageDto(m.Role.ToString()!.ToLowerInvariant(), m.Content))
+            .ToList();
 
         // Persist user message
         conv.AddUserMessage(cmd.Content);

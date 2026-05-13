@@ -138,8 +138,14 @@ pre { padding: var(--space-3); overflow-x: auto; }
     border-radius: var(--radius-md);
     font-family: var(--font-body);
     font-size: 0.9rem;
+    caret-color: var(--gold-primary);
 }
-.appbar form input:focus { border-color: var(--gold-muted); outline: none; }
+.appbar form input::placeholder { color: var(--text-muted); opacity: 1; }
+.appbar form input:focus {
+    border-color: var(--gold-primary);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(201, 169, 97, 0.18);
+}
 
 .appbar .user-menu { position: relative; }
 .appbar .user-menu summary {
@@ -299,7 +305,7 @@ pre { padding: var(--space-3); overflow-x: auto; }
     color: var(--text-secondary);
     margin-bottom: var(--space-2);
 }
-.input, .textarea, .select {
+input, textarea, select, .input, .textarea, .select {
     width: 100%;
     background: var(--bg-elevated);
     border: 1px solid var(--border-default);
@@ -308,13 +314,21 @@ pre { padding: var(--space-3); overflow-x: auto; }
     border-radius: var(--radius-md);
     font-family: var(--font-body);
     font-size: 0.95rem;
-    transition: border-color 150ms ease;
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+    caret-color: var(--gold-primary);
 }
+input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 1; }
+input:focus, textarea:focus, select:focus,
 .input:focus, .textarea:focus, .select:focus {
-    border-color: var(--gold-muted);
+    border-color: var(--gold-primary);
     outline: none;
+    box-shadow: 0 0 0 2px rgba(201, 169, 97, 0.18);
 }
-.textarea { min-height: 80px; resize: vertical; }
+.textarea, textarea { min-height: 80px; resize: vertical; }
+
+/* Buttons inside forms aren't form inputs visually — opt them out of the rule above. */
+button.btn, .btn { width: auto; }
+button.btn-icon, .btn-icon { width: auto; padding: 6px; }
 
 .field-error {
     color: var(--rune-red-soft);
@@ -557,6 +571,13 @@ pre { padding: var(--space-3); overflow-x: auto; }
     border-radius: var(--radius-md);
     font-family: var(--font-body);
     resize: vertical;
+    caret-color: var(--gold-primary);
+}
+.chat-input textarea::placeholder { color: var(--text-muted); opacity: 1; }
+.chat-input textarea:focus {
+    border-color: var(--gold-primary);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(201, 169, 97, 0.18);
 }
 
 .bubble {

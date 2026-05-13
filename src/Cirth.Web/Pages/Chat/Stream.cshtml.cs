@@ -2,6 +2,7 @@ using Cirth.Application.Features.Chat.SendMessage;
 using Cirth.Shared;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -13,13 +14,16 @@ public sealed class StreamModel(
     IMemoryCache cache,
     ILogger<StreamModel> logger) : PageModel
 {
-    public async Task OnGetAsync(string streamId, CancellationToken ct)
+    // Returns IActionResult so we can end with `new EmptyResult()`. Without it Razor Pages
+    // applies an implicit PageResult AFTER our SSE handler completes, which tries to set
+    // Content-Type=text/html on an already-started response and explodes with
+    // "Headers are read-only, response has already started".
+    public async Task<IActionResult> OnGetAsync(string streamId, CancellationToken ct)
     {
         var key = IndexModel.StreamCacheKey(streamId);
         if (!cache.TryGetValue<PendingChatStream>(key, out var pending) || pending is null)
         {
-            Response.StatusCode = 404;
-            return;
+            return NotFound();
         }
         cache.Remove(key);
 
@@ -54,7 +58,7 @@ public sealed class StreamModel(
             logger.LogError(ex, "Chat stream {StreamId} failed to dispatch", streamId);
             await WriteEvent("progress", $"<span class=\"err\">Erro: {System.Net.WebUtility.HtmlEncode(ex.Message)}</span>");
             await WriteEvent("done", "end");
-            return;
+            return new EmptyResult();
         }
 
         if (!result.IsSuccess)
@@ -62,7 +66,7 @@ public sealed class StreamModel(
             logger.LogWarning("Chat stream {StreamId} returned Result.Failure: {Error}", streamId, result.Error!.Message);
             await WriteEvent("progress", $"<span class=\"err\">Erro: {System.Net.WebUtility.HtmlEncode(result.Error!.Message)}</span>");
             await WriteEvent("done", "end");
-            return;
+            return new EmptyResult();
         }
 
         await WriteEvent("progress", "<em>📚 Buscando contexto no acervo...</em>");
@@ -89,5 +93,6 @@ public sealed class StreamModel(
         await WriteEvent("done", "end");
 
         logger.LogInformation("Chat stream {StreamId} completed", streamId);
+        return new EmptyResult();
     }
 }

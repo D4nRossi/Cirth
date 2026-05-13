@@ -77,6 +77,12 @@ tests/
 - Validação via FluentValidation, plugada como `IPipelineBehavior`.
 - Pipeline behaviors: Logging → Validation → Tenant scoping → Handler.
 
+### EF Core — pegadinhas que já mordemos
+
+- **`TakeLast(n)` não traduz pra SQL**. Use `OrderByDescending(...).Take(n).ToListAsync()` e dê `.Reverse()` in-memory depois.
+- **`enum.ToString().ToLower()` dentro de `.Select(...)` não traduz** mesmo quando a coluna está mapeada com `HasConversion<string>()`. Projete pra anonymous type primeiro, faça o `ToString().ToLowerInvariant()` client-side.
+- **`SqlQueryRaw<string>` exige coluna chamada `"Value"`** no resultado — aliase explícito (`SELECT version() AS "Value"`).
+
 ## Convenções de UI (Razor Pages + HTMX)
 
 - Páginas em `Cirth.Web/Pages/`, organizadas por feature (ex.: `Pages/Documents/Index.cshtml`, `Pages/Documents/Upload.cshtml`).
@@ -90,6 +96,7 @@ tests/
   - Toast vindo do server: handler chama `Toast(...)` → seta header `HX-Trigger: {"toast":{...}}` que o `cirth.js` consome.
   - Redirect pós-POST: `HxRedirect("/path")` (envia `HX-Redirect` no HTMX, `302` fora dele).
   - **NUNCA** use `data-hx-*` em atributos lidos por JS custom — HTMX 2.x auto-processa `data-hx-*` como se fossem `hx-*`, causando duplo-fire de requests. Use nomes neutros (ex.: `data-load-url`) para metadados consumidos só pelo nosso JS.
+  - **SSE / streaming handlers em Razor Pages**: o handler `OnGetAsync` deve retornar `Task<IActionResult>` terminando com `new EmptyResult()`. Sem isso, o framework aplica `PageResult` implícito DEPOIS do handler, que tenta setar `Content-Type=text/html` em response já iniciada e estoura `Headers are read-only`.
   - **Antiforgery**: Razor Pages exige antiforgery em todos os POSTs. O `_Layout` injeta o token real via `IAntiforgery.GetAndStoreTokens(Context).RequestToken` no `hx-headers` do `<body>`. Isso cobre POSTs sem `<form>` (ex.: chips com `hx-post` no Documents/Upload). **Não esquecer**: novos POSTs precisam estar dentro da `<body>` do layout (qualquer página Razor Page herda automaticamente).
 - Streaming de chat usa **SSE** (`text/event-stream`): POST cacheia o request em `IMemoryCache`, retorna HTML com `sse-connect`; endpoint GET `/Chat/Stream/{id}` consome `IAsyncEnumerable<string>` da Application e emite eventos `token` / `done`.
 - **NÃO** chame Application handlers direto da view `.cshtml`. Sempre via PageModel.
