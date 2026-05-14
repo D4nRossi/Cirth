@@ -1,5 +1,7 @@
 # Cirth — Guia de execução local
 
+> **Voltando após hiato?** Leia [`STATUS.md`](STATUS.md) primeiro — tem o snapshot do estado, comandos pra retomar em 3 linhas, e o TODO mapeado da última sessão.
+
 ## 1. Primeira vez (one-time)
 
 > **Status:** ✅ Concluído — secrets setados, App Registration criada no Entra ID, Postgres com migrations aplicadas.

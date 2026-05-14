@@ -39,9 +39,11 @@ Detalhes completos em [`docs/DESIGN-SYSTEM.md`](docs/DESIGN-SYSTEM.md).
 
 ## Documentação
 
+- [`STATUS.md`](STATUS.md) — **comece aqui** quando voltar ao projeto: snapshot do estado atual, como retomar, TODO mapeado, regras a observar
+- [`RUN.md`](RUN.md) — guia de execução local (secrets, comandos `make`, checklist de testes manuais, troubleshooting)
 - [`CLAUDE.md`](CLAUDE.md) — constituição operacional para Claude Code
 - [`docs/SPEC-V1.md`](docs/SPEC-V1.md) — especificação completa da V1
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — diagramas C4 e fluxos
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — diagramas C4, fluxos, indexação de dados
 - [`docs/DESIGN-SYSTEM.md`](docs/DESIGN-SYSTEM.md) — paleta, tipografia, componentes
 - [`docs/adr/`](docs/adr/) — Architecture Decision Records
 
